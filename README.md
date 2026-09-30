@@ -21,19 +21,29 @@ The workflow is **built on the AO canvas during the session**. Playbooks and CaC
 
 ## Workflow
 
-```
-SNOW Request → AI Classify → Create CR → Switch (env)
-                                            ├─ dev ────────→ Provision
-                                            ├─ staging ───→ Provision
-                                            └─ prod → Approval → Provision
-                                                                    │
-                                                    ┌───┬───┬───┐
-                                                    DNS  Mon CMDB Bak  (parallel)
-                                                    └───┴───┴───┘
-                                                          │
-                                                       Validate
-                                                      ┌────┴────┐
-                                                 Review CR   Git Commit
+```mermaid
+flowchart LR
+    trigger([SNOW Request]) --> ai[AI: Classify Request]
+    ai --> cr[Create Tracking CR]
+    cr --> sw{Route by Environment}
+
+    sw -- dev --> provision[Provision Server]
+    sw -- staging --> provision
+    sw -- prod --> approval{{CAB Approval}}
+    approval -- approved --> provision
+
+    provision --> dns[Register DNS]
+    provision --> mon[Register Monitoring]
+    provision --> cmdb[Register CMDB]
+    provision --> bak[Register Backup]
+
+    dns --> validate[Validate Server]
+    mon --> validate
+    cmdb --> validate
+    bak --> validate
+
+    validate --> review[Update CR - Review]
+    validate --> git[Commit Audit Report]
 ```
 
 ## Setup
