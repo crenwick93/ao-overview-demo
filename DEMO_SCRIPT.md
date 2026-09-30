@@ -65,12 +65,12 @@
 > This calls the same `amazon.aws.ec2_instance` module you'd use in any Ansible playbook.
 > In your world, swap this for vSphere, Azure, whatever you provision with."
 
-> **While loop:** "The server is spinning up — this is a While loop, polling SSH port 22.
-> It'll retry every iteration until the server responds. You can see the iterations ticking over.
-> This is how you handle anything that needs wait-and-retry logic."
+> **Loop:** "The server is spinning up — now we enter a loop. It waits 30 seconds,
+> then checks SSH port 22. Not ready yet, so it loops back — waits again, checks again.
+> You can see the iterations ticking over on the canvas."
 > *(Watch 2–4 iterations)*
 
-> **Server ready:** "SSH is reachable — the loop exits and we fan out."
+> **Server ready:** "SSH is reachable — the loop condition is met, it exits, and we fan out."
 
 > **Parallel registrations:** "Four jobs just kicked off simultaneously — DNS, monitoring, CMDB, backup.
 > Same playbook, different parameters. Like your Aria forEach loops. Each team owns their playbook."
@@ -143,21 +143,23 @@
 > "All paths arrive here. Dev went straight, prod waited for approval.
 > This one launches a real EC2 instance — in your world, swap for your vSphere playbook."
 
-### Act 6 — While loop: Wait for Server Ready (5 min)
+### Act 6 — Loop + Wait + Check: Server Readiness (5 min)
 
-**What to do:** Add a **loop node** (While type). Connect from provision.
+**What to do:** Add a **Loop** node (While type), a **Wait** node inside it, and a **Check Server Ready** job template node. Connect: Loop → Wait 30s → Check Server Ready → back to Loop. Loop exits to parallel registrations.
 
 **What to configure:**
 - Loop type: While
-- Condition: `${wait_for_server.artifacts.server_ready} != true`
+- Condition: `${check_server_ready.artifacts.server_ready} != true`
 - Max iterations: 10
+- Wait: 30 seconds
 - Inner node: Check Server Ready job template with `server_ip` from provision artifacts
 
 **What to say:**
-> "This is the While loop. It keeps checking SSH port 22 on the new server.
-> Each iteration runs a job template — `wait_for` on port 22, 15-second timeout.
+> "This is the loop. Three nodes working together — the loop controls iteration,
+> the wait pauses 30 seconds so we're not hammering the server,
+> and the check tests SSH port 22.
 > When the server responds, `server_ready` becomes true and the loop exits.
-> Max iterations as a safety net — you don't want infinite loops in production.
+> Max 10 iterations as a safety net — you don't want infinite loops in production.
 > This pattern works for anything: waiting for a service to be healthy, polling an API,
 > retry logic after a deployment."
 
@@ -209,13 +211,15 @@
 | 2 | Route by Environment | Switch | — | dev / staging / prod |
 | 3 | CAB Approval | Approval | — | prod path only |
 | 4 | Provision Server | AAP job | Provision Server | Real EC2 — `server_name`, `environment` |
-| 5 | Wait for Server Ready | While loop | Check Server Ready | SSH port 22 check, max 10 iterations |
-| 6 | Register DNS | AAP job | Register Service | `service_name: dns` |
-| 7 | Register Monitoring | AAP job | Register Service | `service_name: monitoring` |
-| 8 | Register CMDB | AAP job | Register Service | `service_name: cmdb` |
-| 9 | Register Backup | AAP job | Register Service | `service_name: backup` |
-| 10 | Validate Server | AAP job | Validate Server | `server_name`, `server_ip` |
-| 11 | Close Request | AAP job | Manage SNOW Request | `action: close` |
+| 5 | Retry Until Ready | While loop | — | Condition: `server_ready != true`, max 10 |
+| 6 | Wait 30s | Wait | — | 30-second pause between checks |
+| 7 | Check Server Ready | AAP job | Check Server Ready | SSH port 22 check |
+| 8 | Register DNS | AAP job | Register Service | `service_name: dns` |
+| 9 | Register Monitoring | AAP job | Register Service | `service_name: monitoring` |
+| 10 | Register CMDB | AAP job | Register Service | `service_name: cmdb` |
+| 11 | Register Backup | AAP job | Register Service | `service_name: backup` |
+| 12 | Validate Server | AAP job | Validate Server | `server_name`, `server_ip` |
+| 13 | Close Request | AAP job | Manage SNOW Request | `action: close` |
 
 ## Post-Demo Cleanup
 

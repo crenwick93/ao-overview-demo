@@ -34,12 +34,16 @@ flowchart TD
     sw -- prod --> approval{{CAB Approval}}
     approval -- approved --> provision
 
-    provision --> loop[[While: Wait for Server Ready]]
+    provision --> loop[[Loop: Retry Until Ready]]
 
-    loop --> dns[Register DNS]
-    loop --> mon[Register Monitoring]
-    loop --> cmdb[Register CMDB]
-    loop --> bak[Register Backup]
+    loop --> wait[Wait 30s]
+    wait --> check[Check Server Ready]
+    check --> loop
+
+    loop -- complete --> dns[Register DNS]
+    loop -- complete --> mon[Register Monitoring]
+    loop -- complete --> cmdb[Register CMDB]
+    loop -- complete --> bak[Register Backup]
 
     dns --> validate[Validate Server]
     mon --> validate
@@ -50,7 +54,7 @@ flowchart TD
     validate --> git[Commit Audit Report]
 ```
 
-**11 nodes** — Provision spins up a real EC2 instance, the While loop polls SSH port 22 until reachable, then parallel registrations fan out. Every step updates work notes on the RITM inside the playbook.
+**13 nodes** — Provision spins up a real EC2 instance, the loop retries with a 30-second wait between SSH checks until the server is reachable, then parallel registrations fan out. Every step updates work notes on the RITM inside the playbook.
 
 ## How to Trigger
 
