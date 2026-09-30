@@ -16,6 +16,8 @@
     instance_type: "t3.micro"
     key_name: "patching-demo"
     sg_name: "ao-demo-ssh"
+    vpc_id: "vpc-07f753971b27c0e7c"
+    subnet_id: "subnet-06ee7a996e147180c"
 
   tasks:
     - name: Validate required parameters
@@ -30,6 +32,7 @@
         name: "{{ sg_name }}"
         description: "Allow SSH for AO Overview Demo instances"
         region: "{{ aws_region }}"
+        vpc_id: "{{ vpc_id }}"
         rules:
           - proto: tcp
             from_port: 22
@@ -59,6 +62,7 @@
         instance_type: "{{ instance_type }}"
         key_name: "{{ key_name }}"
         security_group: "{{ sg.group_id }}"
+        vpc_subnet_id: "{{ subnet_id }}"
         tags:
           Name: "ao-demo-{{ server_name }}"
           Environment: "{{ environment }}"
