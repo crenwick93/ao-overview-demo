@@ -22,7 +22,7 @@ The workflow is **built on the AO canvas during the session**. Playbooks and CaC
 ## Workflow
 
 ```mermaid
-flowchart LR
+flowchart TD
     trigger([SNOW Request]) --> ai[AI: Classify Request]
     ai --> cr[Create Tracking CR]
     cr --> sw{Route by Environment}
