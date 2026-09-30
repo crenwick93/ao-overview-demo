@@ -1,0 +1,51 @@
+---
+# Simulates server provisioning for the AO Overview Demo.
+# In production, replace with your real vSphere/OpenShift/cloud provisioning playbook.
+#
+# Takes: server_name, os_type, environment
+# Publishes: server_ip, server_fqdn, provision_status
+
+- name: Simulate Server Provisioning
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  tasks:
+    - name: Validate required parameters
+      ansible.builtin.assert:
+        that:
+          - server_name is defined
+          - os_type is defined
+          - environment is defined
+        fail_msg: "server_name, os_type, and environment must be provided"
+
+    - name: Display provisioning request
+      ansible.builtin.debug:
+        msg: |
+          ══════════════════════════════════════════
+           Provisioning Server
+          ══════════════════════════════════════════
+           Server:      {{ server_name }}
+           OS:          {{ os_type }}
+           Environment: {{ environment }}
+          ══════════════════════════════════════════
+
+    - name: Simulate provisioning delay
+      ansible.builtin.pause:
+        seconds: 5
+        prompt: "Provisioning {{ server_name }} ({{ os_type }}) in {{ environment }}..."
+
+    - name: Display provisioning result
+      ansible.builtin.debug:
+        msg: |
+          ✅ Server {{ server_name }} provisioned successfully
+             IP:   10.0.{{ range(1, 254) | random }}.{{ range(1, 254) | random }}
+             FQDN: {{ server_name }}.{{ environment }}.example.com
+
+    - name: Publish provisioning artifacts
+      ansible.builtin.set_stats:
+        data:
+          server_ip: "10.0.42.100"
+          server_fqdn: "{{ server_name }}.{{ environment }}.example.com"
+          provision_status: "success"
+        aggregate: false

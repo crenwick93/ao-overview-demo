@@ -2,11 +2,11 @@
 set -eo pipefail
 
 # Fire a test event to the AO workflow trigger endpoint.
-# Verifies the EDA-to-AO bridge is working end-to-end.
+# Verifies the workflow can be triggered manually (no EDA needed).
 #
 # Usage:
 #   ./scripts/test-trigger.sh
-#   ./scripts/test-trigger.sh '{"incident_number":"INC001","incident_description":"Test event"}'
+#   ./scripts/test-trigger.sh '{"request_description":"New server: web01, RHEL 9, prod","requested_by":"Jane Smith"}'
 #
 # Prerequisites:
 #   .env must have AO_WEBHOOK_BASE_URL, AO_WEBHOOK_PATH,
@@ -28,7 +28,7 @@ if [[ -z "${AO_WEBHOOK_BASE_URL:-}" || -z "${AO_WEBHOOK_PATH:-}" || -z "${AO_WEB
   exit 1
 fi
 
-PAYLOAD="${1:-{\"incident_number\":\"INC0000001\",\"incident_sys_id\":\"test-sys-id\",\"incident_description\":\"Test event from test-trigger.sh\",\"incident_urgency\":\"2\",\"incident_impact\":\"2\"}}"
+PAYLOAD="${1:-{\"request_description\":\"New server needed: webserver-prod-01, RHEL 9, production environment. Needs DNS, monitoring, CMDB, and backup registration.\",\"requested_by\":\"Jane Smith\"}}"
 
 echo "Authenticating with AO..."
 TOKEN=$(curl -sk -X POST "${AO_WEBHOOK_BASE_URL}/api/v1/auth/token" \

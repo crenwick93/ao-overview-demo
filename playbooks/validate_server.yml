@@ -1,0 +1,70 @@
+---
+# Simulates post-provisioning validation checks.
+# Runs after all parallel registrations converge — verifies every service registered OK.
+# In production, replace with your real validation/smoke-test playbook.
+#
+# Takes: server_name, server_ip
+# Publishes: validation_passed, validation_report
+
+- name: Validate Server Readiness
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  tasks:
+    - name: Validate required parameters
+      ansible.builtin.assert:
+        that:
+          - server_name is defined
+          - server_ip is defined
+        fail_msg: "server_name and server_ip must be provided"
+
+    - name: Display validation header
+      ansible.builtin.debug:
+        msg: |
+          ══════════════════════════════════════════
+           Validating Server Readiness
+          ══════════════════════════════════════════
+           Server: {{ server_name }}
+           IP:     {{ server_ip }}
+          ══════════════════════════════════════════
+
+    - name: Check DNS resolution
+      ansible.builtin.debug:
+        msg: "✅ DNS: {{ server_name }} resolves to {{ server_ip }}"
+
+    - name: Check monitoring agent
+      ansible.builtin.debug:
+        msg: "✅ Monitoring: Agent responding on {{ server_ip }}:5666"
+
+    - name: Check CMDB record
+      ansible.builtin.debug:
+        msg: "✅ CMDB: CI record found for {{ server_name }} (status: Installed)"
+
+    - name: Check backup enrolment
+      ansible.builtin.debug:
+        msg: "✅ Backup: {{ server_name }} last backup job: Scheduled"
+
+    - name: Build validation report
+      ansible.builtin.set_fact:
+        _report: |
+          Server Readiness Report — {{ server_name }}
+          ─────────────────────────────────────────
+          DNS Resolution:    PASS
+          Monitoring Agent:  PASS
+          CMDB Record:       PASS
+          Backup Enrolment:  PASS
+          ─────────────────────────────────────────
+          Overall: ALL CHECKS PASSED
+          Server {{ server_name }} ({{ server_ip }}) is Day 1 ready.
+
+    - name: Display validation report
+      ansible.builtin.debug:
+        msg: "{{ _report }}"
+
+    - name: Publish validation artifacts
+      ansible.builtin.set_stats:
+        data:
+          validation_passed: true
+          validation_report: "{{ _report }}"
+        aggregate: false

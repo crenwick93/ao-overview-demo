@@ -1,5 +1,5 @@
 ---
-- name: Apply AAP objects — AO Baseline Template
+- name: Apply AAP objects — AO Overview Demo
   hosts: localhost
   connection: local
   gather_facts: false
@@ -25,59 +25,17 @@
     sn_username: "{{ lookup('env', 'SERVICENOW_USERNAME') | default(lookup('env', 'SN_USERNAME'), true) | default(omit, true) }}"
     sn_password: "{{ lookup('env', 'SERVICENOW_PASSWORD') | default(lookup('env', 'SN_PASSWORD'), true) | default(omit, true) }}"
 
-    # AO Webhook (EDA-to-AO bridge)
-    ao_webhook_base_url: "{{ lookup('env', 'AO_WEBHOOK_BASE_URL') | default(omit, true) }}"
-    ao_webhook_path: "{{ lookup('env', 'AO_WEBHOOK_PATH') | default('placeholder', true) }}"
-    ao_webhook_client_id: "{{ lookup('env', 'AO_WEBHOOK_CLIENT_ID') | default('placeholder', true) }}"
-    ao_webhook_client_secret: "{{ lookup('env', 'AO_WEBHOOK_CLIENT_SECRET') | default('placeholder', true) }}"
-
     # AO API Service Account (for approval bridge)
     ao_sa_client_id: "{{ lookup('env', 'AO_SA_CLIENT_ID') | default('placeholder', true) }}"
     ao_sa_client_secret: "{{ lookup('env', 'AO_SA_CLIENT_SECRET') | default('placeholder', true) }}"
     ao_base_url: "{{ lookup('env', 'AO_WEBHOOK_BASE_URL') | default(omit, true) }}"
 
-    # Demo host SSH key (EC2 instance provisioned by Terraform)
-    # IMPORTANT: Use absolute path via realpath — relative paths fail from CaC.
-    # The errors='ignore' pattern silently creates credentials with no key.
-    _repo_root: "{{ (playbook_dir + '/../..') | realpath }}"
-    _default_key_path: "{{ _repo_root }}/setup/terraform/demo-key.pem"
-    _env_key_path: "{{ lookup('env', 'DEMO_SSH_KEY_PATH') }}"
-    demo_ssh_key_path: "{{ (_repo_root + '/' + _env_key_path) if _env_key_path and not _env_key_path.startswith('/') else (_env_key_path if _env_key_path else _default_key_path) }}"
-    demo_ssh_key: "{{ lookup('file', demo_ssh_key_path) }}"
-
-    # GitHub (for AAP project SCM URL + Git operations credential)
-    github_repo: "{{ lookup('env', 'GITHUB_REPO') | default('YOUR_ORG/ao-baseline', true) }}"
+    # GitHub
+    github_repo: "{{ lookup('env', 'GITHUB_REPO') | default('crenwick93/ao-overview-demo', true) }}"
     git_repo_url: "{{ 'https://github.com/' ~ github_repo ~ '.git' }}"
     github_token: "{{ lookup('env', 'GITHUB_TOKEN') | default('placeholder', true) }}"
-
-    # EDA custom Decision Environment image
-    de_image: "{{ lookup('env', 'DE_IMAGE') | default('YOUR_REGISTRY/snow-de:latest', true) }}"
 
   vars_files:
     - vars.yml
   roles:
     - role: infra.aap_configuration.dispatch
-
-  post_tasks:
-    - name: Look up rulebook activations
-      ansible.builtin.uri:
-        url: "{{ aap_hostname }}/api/eda/v1/activations/"
-        method: GET
-        headers:
-          Authorization: "Bearer {{ aap_token }}"
-        validate_certs: "{{ aap_validate_certs }}"
-        status_code: [200]
-      register: _activations_response
-
-    - name: Enable disabled rulebook activations
-      ansible.builtin.uri:
-        url: "{{ aap_hostname }}/api/eda/v1/activations/{{ item.id }}/enable/"
-        method: POST
-        headers:
-          Authorization: "Bearer {{ aap_token }}"
-        validate_certs: "{{ aap_validate_certs }}"
-        status_code: [204, 200, 409]
-      loop: "{{ _activations_response.json.results }}"
-      loop_control:
-        label: "{{ item.name }}"
-      when: not item.is_enabled | default(true)

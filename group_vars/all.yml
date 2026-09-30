@@ -1,13 +1,4 @@
 ---
-# Global variables for all playbooks.
+# Global variables — AO Overview Demo
+# These are available to all playbooks via group_vars.
 # Override per host group for environment-specific values.
-
-# Service health checks — used by pre/post-check playbooks
-# Customize for your application's critical services
-critical_services:
-  - sshd
-  # - httpd
-  # - nginx
-
-# HTTP health endpoint for service validation
-health_endpoint: "http://localhost:80"

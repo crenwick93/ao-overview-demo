@@ -1,0 +1,238 @@
+{
+  "schema_version": "2.0.0",
+  "name": "Server Onboarding",
+  "description": "End-to-end server onboarding workflow: AI classification, governance via ServiceNow CR, environment-based routing with approval gates, parallel Day 1 registrations, validation, and Git audit trail.",
+  "triggers": [
+    {
+      "id": "trigger_snow_request",
+      "type": "eda_trigger",
+      "name": "ServiceNow Request",
+      "parameters": {
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "request_description": {
+              "type": "string",
+              "description": "ServiceNow request description (free text from requester)"
+            },
+            "requested_by": {
+              "type": "string",
+              "description": "Name of the person who submitted the request"
+            }
+          }
+        }
+      },
+      "position": { "x": 0, "y": 400 }
+    }
+  ],
+  "nodes": [
+    {
+      "id": "ai_classify",
+      "type": "agentic",
+      "name": "AI: Classify Request",
+      "parameters": {
+        "model": "granite-3.3-8b",
+        "prompt": "You are a server onboarding assistant. Read the following ServiceNow request and extract structured information.\n\nRequest: ${trigger_snow_request.request_description}\n\nExtract:\n- server_name: the requested hostname\n- os_type: the operating system (default to RHEL 9 if not specified)\n- environment: dev, staging, or prod\n- services_needed: list of services to register (default: dns, monitoring, cmdb, backup)\n\nRespond with just the extracted fields.",
+        "response_schema": {
+          "type": "object",
+          "properties": {
+            "server_name": { "type": "string" },
+            "os_type": { "type": "string" },
+            "environment": { "type": "string", "enum": ["dev", "staging", "prod"] },
+            "services_needed": { "type": "array", "items": { "type": "string" } }
+          }
+        }
+      },
+      "position": { "x": 400, "y": 400 }
+    },
+    {
+      "id": "create_cr",
+      "type": "aap_job_template",
+      "name": "Create Tracking CR",
+      "parameters": {
+        "job_template_name": "Manage SNOW Change Request",
+        "organization_name": "Default",
+        "extra_vars": {
+          "action": "create",
+          "short_description": "Server Onboarding: ${ai_classify.result.content.server_name}",
+          "justification": "New server request classified by AI. Server: ${ai_classify.result.content.server_name}, OS: ${ai_classify.result.content.os_type}, Env: ${ai_classify.result.content.environment}"
+        }
+      },
+      "position": { "x": 800, "y": 400 }
+    },
+    {
+      "id": "env_switch",
+      "type": "switch",
+      "name": "Route by Environment",
+      "parameters": {
+        "cases": [
+          {
+            "port": "case_dev",
+            "label": "Development",
+            "condition": "${ai_classify.result.content.environment} == 'dev'"
+          },
+          {
+            "port": "case_staging",
+            "label": "Staging",
+            "condition": "${ai_classify.result.content.environment} == 'staging'"
+          },
+          {
+            "port": "case_prod",
+            "label": "Production",
+            "condition": "${ai_classify.result.content.environment} == 'prod'"
+          }
+        ]
+      },
+      "position": { "x": 1200, "y": 400 }
+    },
+    {
+      "id": "prod_approval",
+      "type": "approval",
+      "name": "CAB Approval",
+      "parameters": {
+        "description": "Production server onboarding requires CAB approval before provisioning. Approve in AO or bridge from ServiceNow CR.",
+        "timeout": 0
+      },
+      "position": { "x": 1600, "y": 600 }
+    },
+    {
+      "id": "provision",
+      "type": "aap_job_template",
+      "name": "Provision Server",
+      "parameters": {
+        "job_template_name": "Simulate Provision",
+        "organization_name": "Default",
+        "extra_vars": {
+          "server_name": "${ai_classify.result.content.server_name}",
+          "os_type": "${ai_classify.result.content.os_type}",
+          "environment": "${ai_classify.result.content.environment}"
+        }
+      },
+      "position": { "x": 2000, "y": 400 }
+    },
+    {
+      "id": "register_dns",
+      "type": "aap_job_template",
+      "name": "Register DNS",
+      "parameters": {
+        "job_template_name": "Register Service",
+        "organization_name": "Default",
+        "extra_vars": {
+          "service_name": "dns",
+          "server_name": "${ai_classify.result.content.server_name}",
+          "server_ip": "${provision.artifacts.server_ip}"
+        }
+      },
+      "position": { "x": 2400, "y": 200 }
+    },
+    {
+      "id": "register_monitoring",
+      "type": "aap_job_template",
+      "name": "Register Monitoring",
+      "parameters": {
+        "job_template_name": "Register Service",
+        "organization_name": "Default",
+        "extra_vars": {
+          "service_name": "monitoring",
+          "server_name": "${ai_classify.result.content.server_name}",
+          "server_ip": "${provision.artifacts.server_ip}"
+        }
+      },
+      "position": { "x": 2400, "y": 400 }
+    },
+    {
+      "id": "register_cmdb",
+      "type": "aap_job_template",
+      "name": "Register CMDB",
+      "parameters": {
+        "job_template_name": "Register Service",
+        "organization_name": "Default",
+        "extra_vars": {
+          "service_name": "cmdb",
+          "server_name": "${ai_classify.result.content.server_name}",
+          "server_ip": "${provision.artifacts.server_ip}"
+        }
+      },
+      "position": { "x": 2400, "y": 600 }
+    },
+    {
+      "id": "register_backup",
+      "type": "aap_job_template",
+      "name": "Register Backup",
+      "parameters": {
+        "job_template_name": "Register Service",
+        "organization_name": "Default",
+        "extra_vars": {
+          "service_name": "backup",
+          "server_name": "${ai_classify.result.content.server_name}",
+          "server_ip": "${provision.artifacts.server_ip}"
+        }
+      },
+      "position": { "x": 2400, "y": 800 }
+    },
+    {
+      "id": "validate",
+      "type": "aap_job_template",
+      "name": "Validate Server",
+      "parameters": {
+        "job_template_name": "Validate Server",
+        "organization_name": "Default",
+        "extra_vars": {
+          "server_name": "${ai_classify.result.content.server_name}",
+          "server_ip": "${provision.artifacts.server_ip}"
+        }
+      },
+      "position": { "x": 2800, "y": 400 }
+    },
+    {
+      "id": "review_cr",
+      "type": "aap_job_template",
+      "name": "Update CR (Review)",
+      "parameters": {
+        "job_template_name": "Manage SNOW Change Request",
+        "organization_name": "Default",
+        "extra_vars": {
+          "action": "review",
+          "cr_sys_id": "${create_cr.artifacts.cr_sys_id}",
+          "work_notes": "Server onboarding complete. All validations passed."
+        }
+      },
+      "position": { "x": 3200, "y": 300 }
+    },
+    {
+      "id": "git_commit",
+      "type": "aap_job_template",
+      "name": "Commit Audit Report",
+      "parameters": {
+        "job_template_name": "Manage Git Repo",
+        "organization_name": "Default",
+        "extra_vars": {
+          "action": "commit_file",
+          "file_path": "reports/${ai_classify.result.content.server_name}-onboarding.md",
+          "file_content": "${validate.artifacts.validation_report}",
+          "commit_message": "Onboarding report: ${ai_classify.result.content.server_name}"
+        }
+      },
+      "position": { "x": 3200, "y": 500 }
+    }
+  ],
+  "edges": [
+    { "from": "trigger_snow_request", "to": "ai_classify" },
+    { "from": "ai_classify", "to": "create_cr" },
+    { "from": "create_cr", "to": "env_switch" },
+    { "from": "env_switch", "to": "provision", "from_port": "case_dev" },
+    { "from": "env_switch", "to": "provision", "from_port": "case_staging" },
+    { "from": "env_switch", "to": "prod_approval", "from_port": "case_prod" },
+    { "from": "prod_approval", "to": "provision", "from_port": "approved" },
+    { "from": "provision", "to": "register_dns" },
+    { "from": "provision", "to": "register_monitoring" },
+    { "from": "provision", "to": "register_cmdb" },
+    { "from": "provision", "to": "register_backup" },
+    { "from": "register_dns", "to": "validate" },
+    { "from": "register_monitoring", "to": "validate" },
+    { "from": "register_cmdb", "to": "validate" },
+    { "from": "register_backup", "to": "validate" },
+    { "from": "validate", "to": "review_cr" },
+    { "from": "validate", "to": "git_commit" }
+  ]
+}

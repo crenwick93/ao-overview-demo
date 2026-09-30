@@ -1,0 +1,51 @@
+---
+# Simulates registering a server in an infrastructure service.
+# Called multiple times in parallel with different service_name values.
+# In production, replace with your real DNS/monitoring/CMDB/backup playbooks.
+#
+# Takes: service_name (dns|monitoring|cmdb|backup), server_name, server_ip
+# Publishes: registration_status, registration_id
+
+- name: Register Server in Service
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  tasks:
+    - name: Validate required parameters
+      ansible.builtin.assert:
+        that:
+          - service_name is defined
+          - service_name in ['dns', 'monitoring', 'cmdb', 'backup']
+          - server_name is defined
+          - server_ip is defined
+        fail_msg: "service_name (dns|monitoring|cmdb|backup), server_name, and server_ip must be provided"
+
+    - name: Display registration request
+      ansible.builtin.debug:
+        msg: |
+          ── Registering in {{ service_name | upper }} ──
+           Server: {{ server_name }}
+           IP:     {{ server_ip }}
+
+    - name: Simulate registration delay
+      ansible.builtin.pause:
+        seconds: 3
+        prompt: "Registering {{ server_name }} in {{ service_name }}..."
+
+    - name: Simulate service-specific output
+      ansible.builtin.debug:
+        msg: "{{ _service_messages[service_name] }}"
+      vars:
+        _service_messages:
+          dns: "✅ DNS: A record {{ server_name }} → {{ server_ip }} created in example.com zone"
+          monitoring: "✅ Monitoring: {{ server_name }} added to Nagios with standard RHEL checks"
+          cmdb: "✅ CMDB: CI {{ server_name }} created (class: Linux Server, status: Installed)"
+          backup: "✅ Backup: {{ server_name }} enrolled in nightly backup policy (retain 30d)"
+
+    - name: Publish registration artifacts
+      ansible.builtin.set_stats:
+        data:
+          registration_status: "success"
+          registration_id: "REG-{{ service_name | upper }}-{{ 99999 | random }}"
+        aggregate: false
