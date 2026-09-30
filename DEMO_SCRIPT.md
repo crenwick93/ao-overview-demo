@@ -77,7 +77,7 @@
 
 > **Validate:** "All four finished. Validation is checking everything registered correctly."
 
-> **Close + Git:** "The request is closed in ServiceNow, and the full onboarding report is committed to Git."
+> **Close:** "The request is closed in ServiceNow. Full audit trail right there on the RITM."
 
 ### Step 5 — Show the ServiceNow audit trail (2 min)
 
@@ -180,10 +180,10 @@
 
 ### Act 9 — Close the loop (2 min)
 
-**What to do:** Add **Close Request** and **Git commit** nodes from validation.
+**What to do:** Add **Close Request** node from validation.
 
 **What to say:**
-> "Request closed in ServiceNow, audit report committed to Git. Full traceability."
+> "Request closed in ServiceNow. Full traceability."
 
 ---
 

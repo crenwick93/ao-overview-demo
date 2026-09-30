@@ -28,7 +28,6 @@ The narrative is **Server Onboarding**. Playbooks simulate the actions (no real 
 - `manage_snow_incident.yml` — incident lifecycle: `action: create|update|resolve`
 - `manage_snow_change_request.yml` — CR lifecycle: `action: create|authorize|update|review|close`
 - `bridge_ao_approval.yml` — bridges SNOW CR approval to AO approval gate
-- `manage_git_repo.yml` — `action: commit_file|create_pr`
 
 ### Stubs (simulate with debug + set_stats)
 - `simulate_provision.yml` — takes `server_name`, `os_type`, `environment` → publishes `server_ip`, `server_fqdn`
@@ -75,8 +74,7 @@ The narrative is **Server Onboarding**. Playbooks simulate the actions (no real 
 
 ### Action-Based Playbook Pattern
 - `manage_snow_change_request.yml` — `action: create|authorize|update|review|close`
-- `manage_git_repo.yml` — `action: commit_file|create_pr`
-- The `create`/`commit_file` actions publish identifiers via `set_stats` — subsequent nodes reference them as `${node.artifacts.field}`
+- The `create` actions publish identifiers via `set_stats` — subsequent nodes reference them as `${node.artifacts.field}`
 
 ## Scripts
 - `./dependencies/build-images.sh` — builds DE container image

@@ -31,10 +31,9 @@
     ao_webhook_client_id: "{{ lookup('env', 'AO_SA_CLIENT_ID') | default('placeholder', true) }}"
     ao_webhook_client_secret: "{{ lookup('env', 'AO_SA_CLIENT_SECRET') | default('placeholder', true) }}"
 
-    # GitHub
+    # GitHub (project SCM only — no PAT needed for public repo)
     github_repo: "{{ lookup('env', 'GITHUB_REPO') | default('crenwick93/ao-overview-demo', true) }}"
     git_repo_url: "{{ 'https://github.com/' ~ github_repo ~ '.git' }}"
-    github_token: "{{ lookup('env', 'GITHUB_TOKEN') | default('placeholder', true) }}"
 
     # AWS
     aws_access_key_id: "{{ lookup('env', 'AWS_ACCESS_KEY_ID') | default('placeholder', true) }}"

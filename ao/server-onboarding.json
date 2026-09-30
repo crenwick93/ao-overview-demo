@@ -220,22 +220,6 @@
         }
       },
       "position": { "x": 250, "y": 600 }
-    },
-    {
-      "id": "git_commit",
-      "type": "aap_job_template",
-      "name": "Commit Audit Report",
-      "parameters": {
-        "job_template_name": "Manage Git Repo",
-        "organization_name": "Default",
-        "extra_vars": {
-          "action": "commit_file",
-          "file_path": "reports/${trigger_snow.server_name}-onboarding.md",
-          "file_content": "${validate.artifacts.validation_report}",
-          "commit_message": "Onboarding report: ${trigger_snow.server_name}"
-        }
-      },
-      "position": { "x": 550, "y": 600 }
     }
   ],
   "edges": [
@@ -256,7 +240,6 @@
     { "from": "register_monitoring", "to": "validate" },
     { "from": "register_cmdb", "to": "validate" },
     { "from": "register_backup", "to": "validate" },
-    { "from": "validate", "to": "close_request" },
-    { "from": "validate", "to": "git_commit" }
+    { "from": "validate", "to": "close_request" }
   ]
 }

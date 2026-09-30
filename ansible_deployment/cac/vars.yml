@@ -49,19 +49,6 @@ controller_credential_types:
         webhook_client_id: !unsafe "{{ webhook_client_id }}"
         webhook_client_secret: !unsafe "{{ webhook_client_secret }}"
 
-  - name: "GitHub API Token"
-    description: "Personal access token for GitHub API operations"
-    kind: cloud
-    inputs:
-      fields:
-        - id: github_token
-          type: string
-          label: "GitHub Token"
-          secret: true
-    injectors:
-      env:
-        GITHUB_TOKEN: !unsafe "{{ github_token }}"
-
 # -----------------------------------------------------------------------------
 # Credentials
 # -----------------------------------------------------------------------------
@@ -92,13 +79,6 @@ controller_credentials:
       webhook_base_url: "{{ ao_webhook_base_url }}"
       webhook_client_id: "{{ ao_webhook_client_id }}"
       webhook_client_secret: "{{ ao_webhook_client_secret }}"
-
-  - name: "GitHub API"
-    description: "GitHub PAT for committing audit reports"
-    organization: "Default"
-    credential_type: "GitHub API Token"
-    inputs:
-      github_token: "{{ github_token }}"
 
   - name: "AWS"
     description: "AWS credentials for EC2 provisioning"
@@ -157,18 +137,6 @@ controller_templates:
     ask_variables_on_launch: true
     credentials:
       - "ServiceNow ITSM"
-
-  - name: "Manage Git Repo"
-    description: >-
-      GitHub operations: commit audit reports to the project repo.
-    organization: "Default"
-    job_type: "run"
-    project: "AO Overview Demo"
-    playbook: "playbooks/manage_git_repo.yml"
-    inventory: "Demo Inventory"
-    ask_variables_on_launch: true
-    credentials:
-      - "GitHub API"
 
   - name: "Provision Server"
     description: >-

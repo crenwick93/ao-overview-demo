@@ -51,10 +51,9 @@ flowchart TD
     bak --> validate
 
     validate --> close[Close Request]
-    validate --> git[Commit Audit Report]
 ```
 
-**13 nodes** — Provision spins up a real EC2 instance, the loop retries with a 30-second wait between SSH checks until the server is reachable, then parallel registrations fan out. Every step updates work notes on the RITM inside the playbook.
+**12 nodes** — Provision spins up a real EC2 instance, the loop retries with a 30-second wait between SSH checks until the server is reachable, then parallel registrations fan out. Every step updates work notes on the RITM inside the playbook.
 
 ## How to Trigger
 
@@ -124,7 +123,6 @@ This terminates all instances tagged `managed_by: ao-overview-demo`.
 ├── playbooks/
 │   ├── trigger_ao_workflow.yml               ← EDA-to-AO bridge
 │   ├── manage_snow_request.yml               ← RITM work notes + close
-│   ├── manage_git_repo.yml                   ← Git commits
 │   ├── provision_server.yml                  ← EC2 provisioning (real)
 │   ├── check_server_ready.yml                ← SSH readiness check (While loop)
 │   ├── terminate_demo_instances.yml          ← Post-demo cleanup
@@ -149,6 +147,5 @@ This terminates all instances tagged `managed_by: ao-overview-demo`.
 |------------|---------|-------------|
 | AAP OAuth Token | CaC deployment | Before CaC |
 | ServiceNow credentials | RITM work notes + EDA polling | Before CaC |
-| GitHub PAT | Audit report commits | Before CaC |
 | AWS credentials | EC2 provisioning | Before CaC |
 | AO Webhook credentials | EDA-to-AO bridge | After publishing workflow |
