@@ -14,7 +14,8 @@
   vars:
     aws_region: "eu-west-1"
     instance_type: "t3.micro"
-    key_name: "chris-lab"
+    key_name: "patching-demo"
+    sg_name: "ao-demo-ssh"
 
   tasks:
     - name: Validate required parameters
@@ -23,6 +24,20 @@
           - server_name is defined
           - environment is defined
         fail_msg: "server_name and environment must be provided"
+
+    - name: Ensure SSH security group exists
+      amazon.aws.ec2_security_group:
+        name: "{{ sg_name }}"
+        description: "Allow SSH for AO Overview Demo instances"
+        region: "{{ aws_region }}"
+        rules:
+          - proto: tcp
+            from_port: 22
+            to_port: 22
+            cidr_ip: "0.0.0.0/0"
+        tags:
+          managed_by: "ao-overview-demo"
+      register: sg
 
     - name: Look up latest RHEL 9 AMI
       amazon.aws.ec2_ami_info:
@@ -43,6 +58,7 @@
         image_id: "{{ ami_id }}"
         instance_type: "{{ instance_type }}"
         key_name: "{{ key_name }}"
+        security_group: "{{ sg.group_id }}"
         tags:
           Name: "ao-demo-{{ server_name }}"
           Environment: "{{ environment }}"
