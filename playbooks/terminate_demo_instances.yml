@@ -1,0 +1,38 @@
+---
+# Terminates EC2 instances tagged with managed_by=ao-overview-demo.
+# Run after the demo to clean up.
+#
+# Usage:
+#   ansible-playbook playbooks/terminate_demo_instances.yml
+
+- name: Terminate Demo EC2 Instances
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    aws_region: "eu-west-1"
+
+  tasks:
+    - name: Find demo instances
+      amazon.aws.ec2_instance_info:
+        region: "{{ aws_region }}"
+        filters:
+          "tag:managed_by": "ao-overview-demo"
+          instance-state-name: ["running", "stopped"]
+      register: demo_instances
+
+    - name: Display instances to terminate
+      ansible.builtin.debug:
+        msg: "Found {{ demo_instances.instances | length }} demo instance(s)"
+
+    - name: Terminate instances
+      amazon.aws.ec2_instance:
+        region: "{{ aws_region }}"
+        instance_ids: "{{ demo_instances.instances | map(attribute='instance_id') | list }}"
+        state: absent
+      when: demo_instances.instances | length > 0
+
+    - name: Confirm cleanup
+      ansible.builtin.debug:
+        msg: "✅ All ao-overview-demo instances terminated"

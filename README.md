@@ -5,7 +5,7 @@ A live demo that walks a customer through Automation Orchestrator. Two parts:
 1. **Working workflow** — pre-imported, fires from a real ServiceNow service request via EDA, runs end-to-end with work notes updating on the RITM at every milestone
 2. **Live build** — build the same workflow from scratch on the AO canvas to show how it's done
 
-The narrative is **Server Onboarding** — a new VM request arrives in ServiceNow, AO orchestrates provisioning, parallel service registrations, validation, and closes the request. No real VMs — the stubs simulate the actions so the workflow structure and AO features are the star.
+The narrative is **Server Onboarding** — a new VM request arrives in ServiceNow, AO orchestrates provisioning of a real EC2 instance, waits for the server to become reachable (While loop), runs parallel service registrations, validates, and closes the request.
 
 ## What the Demo Shows
 
@@ -15,6 +15,7 @@ The narrative is **Server Onboarding** — a new VM request arrives in ServiceNo
 | AAP job template nodes | JavaScript actions | Each step calls a real AAP job template |
 | Switch/condition | Decision elements | Route by environment: dev → auto, prod → approval |
 | Approval gate | User interaction | Production path pauses for CAB approval |
+| **While loop** | Wait/retry logic | Poll until the EC2 instance is SSH-reachable |
 | Parallel execution | forEach loops | DNS, monitoring, CMDB, backup run in parallel |
 | Convergence | forEach completion | All registrations must complete before validation |
 | EDA trigger | Event broker | ServiceNow request polling triggers the workflow |
@@ -33,10 +34,12 @@ flowchart TD
     sw -- prod --> approval{{CAB Approval}}
     approval -- approved --> provision
 
-    provision --> dns[Register DNS]
-    provision --> mon[Register Monitoring]
-    provision --> cmdb[Register CMDB]
-    provision --> bak[Register Backup]
+    provision --> loop[[While: Wait for Server Ready]]
+
+    loop --> dns[Register DNS]
+    loop --> mon[Register Monitoring]
+    loop --> cmdb[Register CMDB]
+    loop --> bak[Register Backup]
 
     dns --> validate[Validate Server]
     mon --> validate
@@ -47,7 +50,7 @@ flowchart TD
     validate --> git[Commit Audit Report]
 ```
 
-**10 nodes** — each step updates work notes on the RITM automatically inside the playbook.
+**11 nodes** — Provision spins up a real EC2 instance, the While loop polls SSH port 22 until reachable, then parallel registrations fan out. Every step updates work notes on the RITM inside the playbook.
 
 ## How to Trigger
 
@@ -97,6 +100,16 @@ Create a ServiceNow RITM with "Server Onboarding" in the short description, or:
 ./scripts/test-trigger.sh
 ```
 
+### 6. Cleanup after demo
+
+Terminate any EC2 instances left over:
+
+```bash
+ansible-playbook playbooks/terminate_demo_instances.yml
+```
+
+This terminates all instances tagged `managed_by: ao-overview-demo`.
+
 ## Project Structure
 
 ```
@@ -108,10 +121,11 @@ Create a ServiceNow RITM with "Server Onboarding" in the short description, or:
 │   ├── trigger_ao_workflow.yml               ← EDA-to-AO bridge
 │   ├── manage_snow_request.yml               ← RITM work notes + close
 │   ├── manage_git_repo.yml                   ← Git commits
-│   ├── simulate_provision.yml                ← Stub: server provisioning
+│   ├── provision_server.yml                  ← EC2 provisioning (real)
+│   ├── check_server_ready.yml                ← SSH readiness check (While loop)
+│   ├── terminate_demo_instances.yml          ← Post-demo cleanup
 │   ├── register_service.yml                  ← Stub: DNS/monitoring/CMDB/backup
 │   ├── validate_server.yml                   ← Stub: post-provision checks
-│   └── generate_report.yml                   ← Stub: markdown report
 ├── rulebooks/
 │   └── server_onboarding.yml                 ← EDA: polls SNOW for new RITMs
 ├── dependencies/
@@ -132,4 +146,5 @@ Create a ServiceNow RITM with "Server Onboarding" in the short description, or:
 | AAP OAuth Token | CaC deployment | Before CaC |
 | ServiceNow credentials | RITM work notes + EDA polling | Before CaC |
 | GitHub PAT | Audit report commits | Before CaC |
+| AWS credentials | EC2 provisioning | Before CaC |
 | AO Webhook credentials | EDA-to-AO bridge | After publishing workflow |

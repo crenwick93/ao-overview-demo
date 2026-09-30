@@ -100,6 +100,14 @@ controller_credentials:
     inputs:
       github_token: "{{ github_token }}"
 
+  - name: "AWS"
+    description: "AWS credentials for EC2 provisioning"
+    organization: "Default"
+    credential_type: "Amazon Web Services"
+    inputs:
+      username: "{{ aws_access_key_id }}"
+      password: "{{ aws_secret_access_key }}"
+
 # -----------------------------------------------------------------------------
 # Inventories
 # -----------------------------------------------------------------------------
@@ -162,19 +170,31 @@ controller_templates:
     credentials:
       - "GitHub API"
 
-  - name: "Simulate Provision"
+  - name: "Provision Server"
     description: >-
-      Simulates server provisioning. Takes server_name, os_type, environment.
-      Publishes server_ip, server_fqdn, provision_status via set_stats.
+      Launches a real EC2 instance (RHEL 9, t3.micro).
+      Publishes server_ip, instance_id, provision_status via set_stats.
       Updates RITM work notes if ritm_sys_id is provided.
     organization: "Default"
     job_type: "run"
     project: "AO Overview Demo"
-    playbook: "playbooks/simulate_provision.yml"
+    playbook: "playbooks/provision_server.yml"
     inventory: "Demo Inventory"
     ask_variables_on_launch: true
     credentials:
       - "ServiceNow ITSM"
+      - "AWS"
+
+  - name: "Check Server Ready"
+    description: >-
+      Checks if a provisioned server is reachable on SSH (port 22).
+      Used inside a While loop. Publishes server_ready via set_stats.
+    organization: "Default"
+    job_type: "run"
+    project: "AO Overview Demo"
+    playbook: "playbooks/check_server_ready.yml"
+    inventory: "Demo Inventory"
+    ask_variables_on_launch: true
 
   - name: "Register Service"
     description: >-
@@ -204,16 +224,6 @@ controller_templates:
     credentials:
       - "ServiceNow ITSM"
 
-  - name: "Generate Report"
-    description: >-
-      Generates a markdown onboarding report for the Git audit trail.
-      Publishes report_content, report_file_path via set_stats.
-    organization: "Default"
-    job_type: "run"
-    project: "AO Overview Demo"
-    playbook: "playbooks/generate_report.yml"
-    inventory: "Demo Inventory"
-    ask_variables_on_launch: true
 
 # =============================================================================
 # Event-Driven Ansible

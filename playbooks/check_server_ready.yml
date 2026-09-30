@@ -1,0 +1,47 @@
+---
+# Checks if a provisioned server is reachable on SSH (port 22).
+# Used inside a While loop — returns server_ready: true when the server responds.
+#
+# Takes: server_name, server_ip
+# Publishes: server_ready (true/false)
+
+- name: Check Server Readiness
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  tasks:
+    - name: Validate required parameters
+      ansible.builtin.assert:
+        that:
+          - server_name is defined
+          - server_ip is defined
+        fail_msg: "server_name and server_ip must be provided"
+
+    - name: Check SSH port
+      ansible.builtin.wait_for:
+        host: "{{ server_ip }}"
+        port: 22
+        timeout: 15
+      register: ssh_check
+      ignore_errors: true
+
+    - name: Determine readiness
+      ansible.builtin.set_fact:
+        _ready: "{{ ssh_check is success }}"
+
+    - name: Server not ready yet
+      ansible.builtin.debug:
+        msg: "⏳ Server {{ server_name }} ({{ server_ip }}) — SSH not yet reachable. Will retry..."
+      when: not _ready | bool
+
+    - name: Server is ready
+      ansible.builtin.debug:
+        msg: "✅ Server {{ server_name }} ({{ server_ip }}) — SSH is reachable!"
+      when: _ready | bool
+
+    - name: Publish readiness status
+      ansible.builtin.set_stats:
+        data:
+          server_ready: "{{ _ready | bool }}"
+        aggregate: false

@@ -34,7 +34,6 @@ The narrative is **Server Onboarding**. Playbooks simulate the actions (no real 
 - `simulate_provision.yml` — takes `server_name`, `os_type`, `environment` → publishes `server_ip`, `server_fqdn`
 - `register_service.yml` — takes `service_name` (dns|monitoring|cmdb|backup), `server_name`, `server_ip` → publishes `registration_status`
 - `validate_server.yml` — takes `server_name`, `server_ip` → publishes `validation_passed`, `validation_report`
-- `generate_report.yml` — takes all prior artifacts → publishes `report_content`, `report_file_path`
 
 ## EDA
 

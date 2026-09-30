@@ -1,0 +1,88 @@
+---
+# Provisions a real EC2 instance for the AO Overview Demo.
+# Launches a minimal RHEL instance — no apps, no config.
+# The While loop checks for SSH readiness afterwards.
+#
+# Takes: server_name, os_type, environment, ritm_sys_id (optional)
+# Publishes: server_ip, instance_id, server_fqdn, provision_status
+
+- name: Provision Server (EC2)
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    aws_region: "eu-west-1"
+    instance_type: "t3.micro"
+    key_name: "chris-lab"
+
+  tasks:
+    - name: Validate required parameters
+      ansible.builtin.assert:
+        that:
+          - server_name is defined
+          - environment is defined
+        fail_msg: "server_name and environment must be provided"
+
+    - name: Look up latest RHEL 9 AMI
+      amazon.aws.ec2_ami_info:
+        region: "{{ aws_region }}"
+        filters:
+          name: "RHEL-9*-x86_64-*"
+          architecture: x86_64
+        owners: ["309956199498"]
+      register: ami_result
+
+    - name: Select newest AMI
+      ansible.builtin.set_fact:
+        ami_id: "{{ (ami_result.images | sort(attribute='creation_date') | last).image_id }}"
+
+    - name: Launch EC2 instance
+      amazon.aws.ec2_instance:
+        region: "{{ aws_region }}"
+        image_id: "{{ ami_id }}"
+        instance_type: "{{ instance_type }}"
+        key_name: "{{ key_name }}"
+        tags:
+          Name: "ao-demo-{{ server_name }}"
+          Environment: "{{ environment }}"
+          managed_by: "ao-overview-demo"
+        wait: true
+        state: running
+      register: ec2
+
+    - name: Record instance details
+      ansible.builtin.set_fact:
+        _instance_id: "{{ ec2.instances[0].instance_id }}"
+        _instance_ip: "{{ ec2.instances[0].public_ip_address }}"
+
+    - name: Display provisioning result
+      ansible.builtin.debug:
+        msg: |
+          ══════════════════════════════════════════
+           Server Provisioned
+          ══════════════════════════════════════════
+           Server:      {{ server_name }}
+           Instance ID: {{ _instance_id }}
+           IP:          {{ _instance_ip }}
+           AMI:         {{ ami_id }}
+           Region:      {{ aws_region }}
+          ══════════════════════════════════════════
+
+    - name: Update RITM work notes
+      servicenow.itsm.api:
+        resource: sc_req_item
+        action: patch
+        sys_id: "{{ ritm_sys_id }}"
+        data:
+          work_notes: "[code]<h3>Server Provisioned</h3><p>Server: {{ server_name }}<br>Instance: {{ _instance_id }}<br>IP: {{ _instance_ip }}<br>Region: {{ aws_region }}<br>Waiting for server to become reachable...</p>[/code]"
+      when: ritm_sys_id is defined and ritm_sys_id | length > 0
+
+    - name: Publish provisioning artifacts
+      ansible.builtin.set_stats:
+        data:
+          server_ip: "{{ _instance_ip }}"
+          instance_id: "{{ _instance_id }}"
+          server_fqdn: "{{ server_name }}.{{ environment }}.example.com"
+          provision_status: "success"
+        aggregate: false

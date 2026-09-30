@@ -82,7 +82,7 @@
       "type": "aap_job_template",
       "name": "Provision Server",
       "parameters": {
-        "job_template_name": "Simulate Provision",
+        "job_template_name": "Provision Server",
         "organization_name": "Default",
         "extra_vars": {
           "server_name": "${trigger_snow.server_name}",
@@ -92,6 +92,29 @@
         }
       },
       "position": { "x": 400, "y": 300 }
+    },
+    {
+      "id": "wait_for_server",
+      "type": "loop",
+      "name": "Wait for Server Ready",
+      "parameters": {
+        "loop_type": "while",
+        "max_iterations": 10,
+        "condition": "${wait_for_server.artifacts.server_ready} != true",
+        "node": {
+          "type": "aap_job_template",
+          "name": "Check Server Ready",
+          "parameters": {
+            "job_template_name": "Check Server Ready",
+            "organization_name": "Default",
+            "extra_vars": {
+              "server_name": "${trigger_snow.server_name}",
+              "server_ip": "${provision.artifacts.server_ip}"
+            }
+          }
+        }
+      },
+      "position": { "x": 400, "y": 400 }
     },
     {
       "id": "register_dns",
@@ -107,7 +130,7 @@
           "ritm_sys_id": "${trigger_snow.ritm_sys_id}"
         }
       },
-      "position": { "x": 100, "y": 400 }
+      "position": { "x": 100, "y": 500 }
     },
     {
       "id": "register_monitoring",
@@ -123,7 +146,7 @@
           "ritm_sys_id": "${trigger_snow.ritm_sys_id}"
         }
       },
-      "position": { "x": 300, "y": 400 }
+      "position": { "x": 300, "y": 500 }
     },
     {
       "id": "register_cmdb",
@@ -139,7 +162,7 @@
           "ritm_sys_id": "${trigger_snow.ritm_sys_id}"
         }
       },
-      "position": { "x": 500, "y": 400 }
+      "position": { "x": 500, "y": 500 }
     },
     {
       "id": "register_backup",
@@ -155,7 +178,7 @@
           "ritm_sys_id": "${trigger_snow.ritm_sys_id}"
         }
       },
-      "position": { "x": 700, "y": 400 }
+      "position": { "x": 700, "y": 500 }
     },
     {
       "id": "validate",
@@ -170,7 +193,7 @@
           "ritm_sys_id": "${trigger_snow.ritm_sys_id}"
         }
       },
-      "position": { "x": 400, "y": 500 }
+      "position": { "x": 400, "y": 600 }
     },
     {
       "id": "close_request",
@@ -210,10 +233,11 @@
     { "from": "env_switch", "to": "provision", "from_port": "case_staging" },
     { "from": "env_switch", "to": "prod_approval", "from_port": "case_prod" },
     { "from": "prod_approval", "to": "provision", "from_port": "approved" },
-    { "from": "provision", "to": "register_dns" },
-    { "from": "provision", "to": "register_monitoring" },
-    { "from": "provision", "to": "register_cmdb" },
-    { "from": "provision", "to": "register_backup" },
+    { "from": "provision", "to": "wait_for_server" },
+    { "from": "wait_for_server", "to": "register_dns" },
+    { "from": "wait_for_server", "to": "register_monitoring" },
+    { "from": "wait_for_server", "to": "register_cmdb" },
+    { "from": "wait_for_server", "to": "register_backup" },
     { "from": "register_dns", "to": "validate" },
     { "from": "register_monitoring", "to": "validate" },
     { "from": "register_cmdb", "to": "validate" },

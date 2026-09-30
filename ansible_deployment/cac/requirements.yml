@@ -3,3 +3,4 @@ collections:
   - name: infra.aap_configuration
   - name: ansible.controller
   - name: servicenow.itsm
+  - name: amazon.aws

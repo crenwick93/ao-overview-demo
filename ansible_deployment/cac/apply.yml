@@ -26,15 +26,19 @@
     sn_password: "{{ lookup('env', 'SERVICENOW_PASSWORD') | default(lookup('env', 'SN_PASSWORD'), true) | default(omit, true) }}"
 
     # AO Webhook (EDA-to-AO bridge)
-    ao_webhook_base_url: "{{ lookup('env', 'AO_WEBHOOK_BASE_URL') | default(omit, true) }}"
+    ao_webhook_base_url: "{{ aap_hostname }}"
     ao_webhook_path: "{{ lookup('env', 'AO_WEBHOOK_PATH') | default('placeholder', true) }}"
-    ao_webhook_client_id: "{{ lookup('env', 'AO_WEBHOOK_CLIENT_ID') | default('placeholder', true) }}"
-    ao_webhook_client_secret: "{{ lookup('env', 'AO_WEBHOOK_CLIENT_SECRET') | default('placeholder', true) }}"
+    ao_webhook_client_id: "{{ lookup('env', 'AO_SA_CLIENT_ID') | default('placeholder', true) }}"
+    ao_webhook_client_secret: "{{ lookup('env', 'AO_SA_CLIENT_SECRET') | default('placeholder', true) }}"
 
     # GitHub
     github_repo: "{{ lookup('env', 'GITHUB_REPO') | default('crenwick93/ao-overview-demo', true) }}"
     git_repo_url: "{{ 'https://github.com/' ~ github_repo ~ '.git' }}"
     github_token: "{{ lookup('env', 'GITHUB_TOKEN') | default('placeholder', true) }}"
+
+    # AWS
+    aws_access_key_id: "{{ lookup('env', 'AWS_ACCESS_KEY_ID') | default('placeholder', true) }}"
+    aws_secret_access_key: "{{ lookup('env', 'AWS_SECRET_ACCESS_KEY') | default('placeholder', true) }}"
 
   vars_files:
     - vars.yml
