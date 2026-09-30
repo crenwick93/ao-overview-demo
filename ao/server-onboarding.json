@@ -38,7 +38,7 @@
           }
         }
       },
-      "position": { "x": 400, "y": 0 }
+      "position": { "x": 500, "y": 0 }
     }
   ],
   "nodes": [
@@ -65,7 +65,7 @@
           }
         ]
       },
-      "position": { "x": 400, "y": 100 }
+      "position": { "x": 500, "y": 200 }
     },
     {
       "id": "prod_approval",
@@ -75,7 +75,7 @@
         "description": "Production server onboarding requires CAB approval before provisioning.",
         "timeout": 0
       },
-      "position": { "x": 700, "y": 200 }
+      "position": { "x": 900, "y": 350 }
     },
     {
       "id": "provision",
@@ -91,7 +91,7 @@
           "ritm_sys_id": "${trigger_snow.ritm_sys_id}"
         }
       },
-      "position": { "x": 400, "y": 300 }
+      "position": { "x": 500, "y": 500 }
     },
     {
       "id": "server_ready_loop",
@@ -102,7 +102,7 @@
         "max_iterations": 10,
         "condition": "${check_server_ready.artifacts.server_ready} != true"
       },
-      "position": { "x": 400, "y": 370 }
+      "position": { "x": 500, "y": 700 }
     },
     {
       "id": "wait_between_checks",
@@ -111,7 +111,7 @@
       "parameters": {
         "duration": 30
       },
-      "position": { "x": 400, "y": 430 }
+      "position": { "x": 500, "y": 900 }
     },
     {
       "id": "check_server_ready",
@@ -125,7 +125,7 @@
           "server_ip": "${provision.artifacts.server_ip}"
         }
       },
-      "position": { "x": 400, "y": 490 }
+      "position": { "x": 500, "y": 1100 }
     },
     {
       "id": "register_dns",
@@ -141,7 +141,7 @@
           "ritm_sys_id": "${trigger_snow.ritm_sys_id}"
         }
       },
-      "position": { "x": 100, "y": 500 }
+      "position": { "x": 100, "y": 1350 }
     },
     {
       "id": "register_monitoring",
@@ -157,7 +157,7 @@
           "ritm_sys_id": "${trigger_snow.ritm_sys_id}"
         }
       },
-      "position": { "x": 300, "y": 500 }
+      "position": { "x": 400, "y": 1350 }
     },
     {
       "id": "register_cmdb",
@@ -173,7 +173,7 @@
           "ritm_sys_id": "${trigger_snow.ritm_sys_id}"
         }
       },
-      "position": { "x": 500, "y": 500 }
+      "position": { "x": 700, "y": 1350 }
     },
     {
       "id": "register_backup",
@@ -189,7 +189,7 @@
           "ritm_sys_id": "${trigger_snow.ritm_sys_id}"
         }
       },
-      "position": { "x": 700, "y": 500 }
+      "position": { "x": 1000, "y": 1350 }
     },
     {
       "id": "validate",
@@ -204,7 +204,7 @@
           "ritm_sys_id": "${trigger_snow.ritm_sys_id}"
         }
       },
-      "position": { "x": 400, "y": 600 }
+      "position": { "x": 500, "y": 1550 }
     },
     {
       "id": "close_request",
@@ -219,7 +219,7 @@
           "work_notes": "<h3>Server Onboarding Complete</h3><p>Server ${trigger_snow.server_name} with ${trigger_snow.application} fully onboarded and Day 1 ready. All services registered and validated.</p>"
         }
       },
-      "position": { "x": 250, "y": 600 }
+      "position": { "x": 500, "y": 1750 }
     }
   ],
   "edges": [
