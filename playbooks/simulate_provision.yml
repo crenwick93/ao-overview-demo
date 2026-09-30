@@ -2,7 +2,7 @@
 # Simulates server provisioning for the AO Overview Demo.
 # In production, replace with your real vSphere/OpenShift/cloud provisioning playbook.
 #
-# Takes: server_name, os_type, environment
+# Takes: server_name, os_type, environment, ritm_sys_id (optional)
 # Publishes: server_ip, server_fqdn, provision_status
 
 - name: Simulate Server Provisioning
@@ -39,8 +39,17 @@
       ansible.builtin.debug:
         msg: |
           ✅ Server {{ server_name }} provisioned successfully
-             IP:   10.0.{{ range(1, 254) | random }}.{{ range(1, 254) | random }}
+             IP:   10.0.42.100
              FQDN: {{ server_name }}.{{ environment }}.example.com
+
+    - name: Update RITM work notes
+      servicenow.itsm.api:
+        resource: sc_req_item
+        action: patch
+        sys_id: "{{ ritm_sys_id }}"
+        data:
+          work_notes: "[code]<h3>Server Provisioned</h3><p>Server: {{ server_name }}<br>IP: 10.0.42.100<br>FQDN: {{ server_name }}.{{ environment }}.example.com<br>Status: success</p>[/code]"
+      when: ritm_sys_id is defined and ritm_sys_id | length > 0
 
     - name: Publish provisioning artifacts
       ansible.builtin.set_stats:

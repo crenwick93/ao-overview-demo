@@ -3,7 +3,7 @@
 # Called multiple times in parallel with different service_name values.
 # In production, replace with your real DNS/monitoring/CMDB/backup playbooks.
 #
-# Takes: service_name (dns|monitoring|cmdb|backup), server_name, server_ip
+# Takes: service_name (dns|monitoring|cmdb|backup), server_name, server_ip, ritm_sys_id (optional)
 # Publishes: registration_status, registration_id
 
 - name: Register Server in Service
@@ -42,6 +42,15 @@
           monitoring: "✅ Monitoring: {{ server_name }} added to Nagios with standard RHEL checks"
           cmdb: "✅ CMDB: CI {{ server_name }} created (class: Linux Server, status: Installed)"
           backup: "✅ Backup: {{ server_name }} enrolled in nightly backup policy (retain 30d)"
+
+    - name: Update RITM work notes
+      servicenow.itsm.api:
+        resource: sc_req_item
+        action: patch
+        sys_id: "{{ ritm_sys_id }}"
+        data:
+          work_notes: "[code]✅ {{ service_name | upper }}: {{ server_name }} registered successfully[/code]"
+      when: ritm_sys_id is defined and ritm_sys_id | length > 0
 
     - name: Publish registration artifacts
       ansible.builtin.set_stats:

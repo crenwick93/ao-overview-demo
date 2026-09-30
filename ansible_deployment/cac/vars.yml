@@ -166,34 +166,43 @@ controller_templates:
     description: >-
       Simulates server provisioning. Takes server_name, os_type, environment.
       Publishes server_ip, server_fqdn, provision_status via set_stats.
+      Updates RITM work notes if ritm_sys_id is provided.
     organization: "Default"
     job_type: "run"
     project: "AO Overview Demo"
     playbook: "playbooks/simulate_provision.yml"
     inventory: "Demo Inventory"
     ask_variables_on_launch: true
+    credentials:
+      - "ServiceNow ITSM"
 
   - name: "Register Service"
     description: >-
       Simulates registering a server in an infrastructure service.
       Called 4x in parallel: service_name=dns|monitoring|cmdb|backup.
+      Updates RITM work notes if ritm_sys_id is provided.
     organization: "Default"
     job_type: "run"
     project: "AO Overview Demo"
     playbook: "playbooks/register_service.yml"
     inventory: "Demo Inventory"
     ask_variables_on_launch: true
+    credentials:
+      - "ServiceNow ITSM"
 
   - name: "Validate Server"
     description: >-
       Post-provisioning validation. Checks DNS, monitoring, CMDB, backup.
       Publishes validation_passed, validation_report via set_stats.
+      Updates RITM work notes if ritm_sys_id is provided.
     organization: "Default"
     job_type: "run"
     project: "AO Overview Demo"
     playbook: "playbooks/validate_server.yml"
     inventory: "Demo Inventory"
     ask_variables_on_launch: true
+    credentials:
+      - "ServiceNow ITSM"
 
   - name: "Generate Report"
     description: >-

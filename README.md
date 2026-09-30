@@ -26,31 +26,28 @@ The narrative is **Server Onboarding** — a new VM request arrives in ServiceNo
 
 ```mermaid
 flowchart TD
-    trigger([SNOW Service Request - EDA Trigger]) --> note1[Work Note: Request Received]
-    note1 --> sw{Route by Environment}
+    trigger([SNOW Service Request - EDA]) --> sw{Route by Environment}
 
     sw -- dev --> provision[Provision Server]
     sw -- staging --> provision
     sw -- prod --> approval{{CAB Approval}}
     approval -- approved --> provision
 
-    provision --> note2[Work Note: Provisioned]
-    note2 --> dns[Register DNS]
-    note2 --> mon[Register Monitoring]
-    note2 --> cmdb[Register CMDB]
-    note2 --> bak[Register Backup]
+    provision --> dns[Register DNS]
+    provision --> mon[Register Monitoring]
+    provision --> cmdb[Register CMDB]
+    provision --> bak[Register Backup]
 
     dns --> validate[Validate Server]
     mon --> validate
     cmdb --> validate
     bak --> validate
 
-    validate --> note3[Work Note: Validated]
-    note3 --> close[Close Request]
-    note3 --> git[Commit Audit Report]
+    validate --> close[Close Request]
+    validate --> git[Commit Audit Report]
 ```
 
-**14 nodes** — manageable to build live on the canvas in 15–20 minutes. The live build can skip the work note nodes to keep it to ~10.
+**10 nodes** — each step updates work notes on the RITM automatically inside the playbook.
 
 ## How to Trigger
 

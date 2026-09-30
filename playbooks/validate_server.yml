@@ -3,7 +3,7 @@
 # Runs after all parallel registrations converge — verifies every service registered OK.
 # In production, replace with your real validation/smoke-test playbook.
 #
-# Takes: server_name, server_ip
+# Takes: server_name, server_ip, ritm_sys_id (optional)
 # Publishes: validation_passed, validation_report
 
 - name: Validate Server Readiness
@@ -61,6 +61,15 @@
     - name: Display validation report
       ansible.builtin.debug:
         msg: "{{ _report }}"
+
+    - name: Update RITM work notes
+      servicenow.itsm.api:
+        resource: sc_req_item
+        action: patch
+        sys_id: "{{ ritm_sys_id }}"
+        data:
+          work_notes: "[code]<h3>All Validations Passed</h3><p>DNS: ✅ PASS<br>Monitoring: ✅ PASS<br>CMDB: ✅ PASS<br>Backup: ✅ PASS<br><br>Server {{ server_name }} is Day 1 ready.</p>[/code]"
+      when: ritm_sys_id is defined and ritm_sys_id | length > 0
 
     - name: Publish validation artifacts
       ansible.builtin.set_stats:

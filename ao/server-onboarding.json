@@ -1,7 +1,7 @@
 {
   "schema_version": "2.0.0",
   "name": "Server Onboarding",
-  "description": "End-to-end server onboarding: EDA trigger from ServiceNow service request, environment routing with approval gate, parallel Day 1 registrations, validation, and Git audit trail. Work notes update on the RITM at every milestone.",
+  "description": "End-to-end server onboarding: EDA trigger from ServiceNow service request, environment routing with approval gate, parallel Day 1 registrations, validation, and Git audit trail. Each step updates work notes on the RITM automatically.",
   "triggers": [
     {
       "id": "trigger_snow",
@@ -43,21 +43,6 @@
   ],
   "nodes": [
     {
-      "id": "note_received",
-      "type": "aap_job_template",
-      "name": "Work Note: Request Received",
-      "parameters": {
-        "job_template_name": "Manage SNOW Request",
-        "organization_name": "Default",
-        "extra_vars": {
-          "action": "update",
-          "ritm_sys_id": "${trigger_snow.ritm_sys_id}",
-          "work_notes": "<h3>Request Picked Up by AO</h3><p>Server: ${trigger_snow.server_name}<br>OS: ${trigger_snow.os_type}<br>Environment: ${trigger_snow.environment}<br>Application: ${trigger_snow.application}<br><br>Workflow started.</p>"
-        }
-      },
-      "position": { "x": 400, "y": 100 }
-    },
-    {
       "id": "env_switch",
       "type": "switch",
       "name": "Route by Environment",
@@ -80,7 +65,7 @@
           }
         ]
       },
-      "position": { "x": 400, "y": 200 }
+      "position": { "x": 400, "y": 100 }
     },
     {
       "id": "prod_approval",
@@ -90,7 +75,7 @@
         "description": "Production server onboarding requires CAB approval before provisioning.",
         "timeout": 0
       },
-      "position": { "x": 700, "y": 300 }
+      "position": { "x": 700, "y": 200 }
     },
     {
       "id": "provision",
@@ -102,25 +87,11 @@
         "extra_vars": {
           "server_name": "${trigger_snow.server_name}",
           "os_type": "${trigger_snow.os_type}",
-          "environment": "${trigger_snow.environment}"
+          "environment": "${trigger_snow.environment}",
+          "ritm_sys_id": "${trigger_snow.ritm_sys_id}"
         }
       },
-      "position": { "x": 400, "y": 400 }
-    },
-    {
-      "id": "note_provision",
-      "type": "aap_job_template",
-      "name": "Work Note: Provisioned",
-      "parameters": {
-        "job_template_name": "Manage SNOW Request",
-        "organization_name": "Default",
-        "extra_vars": {
-          "action": "update",
-          "ritm_sys_id": "${trigger_snow.ritm_sys_id}",
-          "work_notes": "<h3>Server Provisioned</h3><p>Server: ${trigger_snow.server_name}<br>IP: ${provision.artifacts.server_ip}<br>FQDN: ${provision.artifacts.server_fqdn}<br>Application: ${trigger_snow.application}<br>Status: ${provision.artifacts.provision_status}</p>"
-        }
-      },
-      "position": { "x": 400, "y": 500 }
+      "position": { "x": 400, "y": 300 }
     },
     {
       "id": "register_dns",
@@ -132,10 +103,11 @@
         "extra_vars": {
           "service_name": "dns",
           "server_name": "${trigger_snow.server_name}",
-          "server_ip": "${provision.artifacts.server_ip}"
+          "server_ip": "${provision.artifacts.server_ip}",
+          "ritm_sys_id": "${trigger_snow.ritm_sys_id}"
         }
       },
-      "position": { "x": 100, "y": 600 }
+      "position": { "x": 100, "y": 400 }
     },
     {
       "id": "register_monitoring",
@@ -147,10 +119,11 @@
         "extra_vars": {
           "service_name": "monitoring",
           "server_name": "${trigger_snow.server_name}",
-          "server_ip": "${provision.artifacts.server_ip}"
+          "server_ip": "${provision.artifacts.server_ip}",
+          "ritm_sys_id": "${trigger_snow.ritm_sys_id}"
         }
       },
-      "position": { "x": 300, "y": 600 }
+      "position": { "x": 300, "y": 400 }
     },
     {
       "id": "register_cmdb",
@@ -162,10 +135,11 @@
         "extra_vars": {
           "service_name": "cmdb",
           "server_name": "${trigger_snow.server_name}",
-          "server_ip": "${provision.artifacts.server_ip}"
+          "server_ip": "${provision.artifacts.server_ip}",
+          "ritm_sys_id": "${trigger_snow.ritm_sys_id}"
         }
       },
-      "position": { "x": 500, "y": 600 }
+      "position": { "x": 500, "y": 400 }
     },
     {
       "id": "register_backup",
@@ -177,10 +151,11 @@
         "extra_vars": {
           "service_name": "backup",
           "server_name": "${trigger_snow.server_name}",
-          "server_ip": "${provision.artifacts.server_ip}"
+          "server_ip": "${provision.artifacts.server_ip}",
+          "ritm_sys_id": "${trigger_snow.ritm_sys_id}"
         }
       },
-      "position": { "x": 700, "y": 600 }
+      "position": { "x": 700, "y": 400 }
     },
     {
       "id": "validate",
@@ -191,25 +166,26 @@
         "organization_name": "Default",
         "extra_vars": {
           "server_name": "${trigger_snow.server_name}",
-          "server_ip": "${provision.artifacts.server_ip}"
+          "server_ip": "${provision.artifacts.server_ip}",
+          "ritm_sys_id": "${trigger_snow.ritm_sys_id}"
         }
       },
-      "position": { "x": 400, "y": 700 }
+      "position": { "x": 400, "y": 500 }
     },
     {
-      "id": "note_validated",
+      "id": "close_request",
       "type": "aap_job_template",
-      "name": "Work Note: Validated",
+      "name": "Close Request",
       "parameters": {
         "job_template_name": "Manage SNOW Request",
         "organization_name": "Default",
         "extra_vars": {
-          "action": "update",
+          "action": "close",
           "ritm_sys_id": "${trigger_snow.ritm_sys_id}",
-          "work_notes": "<h3>All Validations Passed</h3><p>DNS: ✅ Registered<br>Monitoring: ✅ Registered<br>CMDB: ✅ Registered<br>Backup: ✅ Registered<br><br>Server ${trigger_snow.server_name} (${trigger_snow.application}) is Day 1 ready.</p>"
+          "work_notes": "<h3>Server Onboarding Complete</h3><p>Server ${trigger_snow.server_name} with ${trigger_snow.application} fully onboarded and Day 1 ready. All services registered and validated.</p>"
         }
       },
-      "position": { "x": 400, "y": 800 }
+      "position": { "x": 250, "y": 600 }
     },
     {
       "id": "git_commit",
@@ -225,42 +201,24 @@
           "commit_message": "Onboarding report: ${trigger_snow.server_name}"
         }
       },
-      "position": { "x": 550, "y": 900 }
-    },
-    {
-      "id": "close_request",
-      "type": "aap_job_template",
-      "name": "Close Request",
-      "parameters": {
-        "job_template_name": "Manage SNOW Request",
-        "organization_name": "Default",
-        "extra_vars": {
-          "action": "close",
-          "ritm_sys_id": "${trigger_snow.ritm_sys_id}",
-          "work_notes": "<h3>Server Onboarding Complete</h3><p>Server ${trigger_snow.server_name} with ${trigger_snow.application} fully onboarded and Day 1 ready. All services registered and validated. Audit report committed to Git.</p>"
-        }
-      },
-      "position": { "x": 250, "y": 900 }
+      "position": { "x": 550, "y": 600 }
     }
   ],
   "edges": [
-    { "from": "trigger_snow", "to": "note_received" },
-    { "from": "note_received", "to": "env_switch" },
+    { "from": "trigger_snow", "to": "env_switch" },
     { "from": "env_switch", "to": "provision", "from_port": "case_dev" },
     { "from": "env_switch", "to": "provision", "from_port": "case_staging" },
     { "from": "env_switch", "to": "prod_approval", "from_port": "case_prod" },
     { "from": "prod_approval", "to": "provision", "from_port": "approved" },
-    { "from": "provision", "to": "note_provision" },
-    { "from": "note_provision", "to": "register_dns" },
-    { "from": "note_provision", "to": "register_monitoring" },
-    { "from": "note_provision", "to": "register_cmdb" },
-    { "from": "note_provision", "to": "register_backup" },
+    { "from": "provision", "to": "register_dns" },
+    { "from": "provision", "to": "register_monitoring" },
+    { "from": "provision", "to": "register_cmdb" },
+    { "from": "provision", "to": "register_backup" },
     { "from": "register_dns", "to": "validate" },
     { "from": "register_monitoring", "to": "validate" },
     { "from": "register_cmdb", "to": "validate" },
     { "from": "register_backup", "to": "validate" },
-    { "from": "validate", "to": "note_validated" },
-    { "from": "note_validated", "to": "close_request" },
-    { "from": "note_validated", "to": "git_commit" }
+    { "from": "validate", "to": "close_request" },
+    { "from": "validate", "to": "git_commit" }
   ]
 }
