@@ -2,10 +2,10 @@
 
 A live demo that walks a customer through Automation Orchestrator. Two parts:
 
-1. **Working workflow** — pre-imported, fires from a real ServiceNow incident via EDA, runs end-to-end with SNOW work notes updating at every milestone
-2. **Live build** — build a workflow from scratch on the AO canvas to show how it's done
+1. **Working workflow** — pre-imported, fires from a real ServiceNow service request via EDA, runs end-to-end with work notes updating on the RITM at every milestone
+2. **Live build** — build the same workflow from scratch on the AO canvas to show how it's done
 
-The narrative is **Server Onboarding** — a new server request arrives in ServiceNow, AO orchestrates the full Day 1 readiness process. No real VMs are provisioned — the stubs simulate the actions so the workflow structure and AO features are the star.
+The narrative is **Server Onboarding** — a new VM request arrives in ServiceNow, AO orchestrates provisioning, parallel service registrations, validation, and closes the request. No real VMs — the stubs simulate the actions so the workflow structure and AO features are the star.
 
 ## What the Demo Shows
 
@@ -13,13 +13,12 @@ The narrative is **Server Onboarding** — a new server request arrives in Servi
 |---------|----------------|----------------|
 | Visual canvas | Schema editor | Build the workflow live |
 | AAP job template nodes | JavaScript actions | Each step calls a real AAP job template |
-| Agentic nodes (AI) | No equivalent | AI reads the SNOW request, classifies the server |
 | Switch/condition | Decision elements | Route by environment: dev → auto, prod → approval |
 | Approval gate | User interaction | Production path pauses for CAB approval |
 | Parallel execution | forEach loops | DNS, monitoring, CMDB, backup run in parallel |
 | Convergence | forEach completion | All registrations must complete before validation |
-| EDA trigger | Event broker | ServiceNow incident polling triggers the workflow |
-| ServiceNow audit trail | Aria audit | Every milestone writes work notes to the CR |
+| EDA trigger | Event broker | ServiceNow request polling triggers the workflow |
+| ServiceNow audit trail | Aria audit | Every milestone writes work notes to the RITM |
 | Git integration | Packages/Git sync | Audit report committed to GitHub |
 | set_stats artifact passing | Variable binding | Each node publishes data the next node consumes |
 
@@ -27,9 +26,7 @@ The narrative is **Server Onboarding** — a new server request arrives in Servi
 
 ```mermaid
 flowchart TD
-    trigger([SNOW Incident - EDA Trigger]) --> ai[AI: Classify Request]
-    ai --> cr[Create Tracking CR]
-    cr --> note1[CR Note: AI Classification]
+    trigger([SNOW Service Request - EDA Trigger]) --> note1[Work Note: Request Received]
     note1 --> sw{Route by Environment}
 
     sw -- dev --> provision[Provision Server]
@@ -37,7 +34,7 @@ flowchart TD
     sw -- prod --> approval{{CAB Approval}}
     approval -- approved --> provision
 
-    provision --> note2[CR Note: Provisioned]
+    provision --> note2[Work Note: Provisioned]
     note2 --> dns[Register DNS]
     note2 --> mon[Register Monitoring]
     note2 --> cmdb[Register CMDB]
@@ -48,20 +45,20 @@ flowchart TD
     cmdb --> validate
     bak --> validate
 
-    validate --> note3[CR Note: Validated]
-    note3 --> review[Review CR]
+    validate --> note3[Work Note: Validated]
+    note3 --> close[Close Request]
     note3 --> git[Commit Audit Report]
 ```
 
-**16 nodes** in the working copy (the live build can skip the CR note nodes to keep it to ~13).
+**14 nodes** — manageable to build live on the canvas in 15–20 minutes. The live build can skip the work note nodes to keep it to ~10.
 
 ## How to Trigger
 
-Create a ServiceNow incident with a short description starting with **"Server Onboarding"**:
+Create a ServiceNow **service request item** (RITM) with a short description starting with **"Server Onboarding"**:
 
-> Server Onboarding: webserver-prod-01, RHEL 9, production environment. Needs DNS, monitoring, CMDB, and backup.
+> Server Onboarding: db-prod-01
 
-EDA picks it up, fires the AO workflow, and work notes build up in the tracking CR as each step completes.
+EDA polls `sc_req_item`, picks it up, and fires the AO workflow. Work notes build up on the RITM as each step completes, and the request is closed automatically at the end.
 
 ## Setup
 
@@ -74,26 +71,20 @@ cp .env.example .env
 # Fill in .env with your credentials
 ```
 
-### 2. Build the Decision Environment
-
-```bash
-./dependencies/build-images.sh --push
-```
-
-### 3. Install collections and apply CaC
+### 2. Install collections and apply CaC
 
 ```bash
 ansible-galaxy collection install -r ansible_deployment/cac/requirements.yml
 ./ansible_deployment/scripts/cac-apply.sh
 ```
 
-This creates all AAP job templates, credentials, EDA rulebook activation, and the project.
+This creates all AAP job templates, credentials, EDA rulebook activation, and the project. The DE image is `quay.io/crenwick93/snow-de:latest` (hardcoded in CaC).
 
-### 4. Import and publish the working workflow
+### 3. Import and publish the working workflow
 
-Import `ao/server-onboarding.json` in the AO UI. Configure the agentic node model/credentials. Publish.
+Import `ao/server-onboarding.json` in the AO UI. Publish.
 
-### 5. Update .env with AO webhook creds and re-run CaC
+### 4. Update .env with AO webhook creds and re-run CaC
 
 After publishing, AO provides webhook credentials. Add them to `.env` and re-run:
 
@@ -101,9 +92,9 @@ After publishing, AO provides webhook credentials. Add them to `.env` and re-run
 ./ansible_deployment/scripts/cac-apply.sh
 ```
 
-### 6. Test
+### 5. Test
 
-Create a ServiceNow incident with "Server Onboarding" in the short description, or:
+Create a ServiceNow RITM with "Server Onboarding" in the short description, or:
 
 ```bash
 ./scripts/test-trigger.sh
@@ -118,16 +109,14 @@ Create a ServiceNow incident with "Server Onboarding" in the short description, 
 │   └── server-onboarding.json               ← Working workflow (import into AO)
 ├── playbooks/
 │   ├── trigger_ao_workflow.yml               ← EDA-to-AO bridge
-│   ├── manage_snow_incident.yml              ← Incident lifecycle
-│   ├── manage_snow_change_request.yml        ← CR lifecycle
-│   ├── bridge_ao_approval.yml                ← SNOW→AO approval bridge
+│   ├── manage_snow_request.yml               ← RITM work notes + close
 │   ├── manage_git_repo.yml                   ← Git commits
 │   ├── simulate_provision.yml                ← Stub: server provisioning
 │   ├── register_service.yml                  ← Stub: DNS/monitoring/CMDB/backup
 │   ├── validate_server.yml                   ← Stub: post-provision checks
 │   └── generate_report.yml                   ← Stub: markdown report
 ├── rulebooks/
-│   └── server_onboarding.yml                 ← EDA: polls SNOW for new requests + CR approvals
+│   └── server_onboarding.yml                 ← EDA: polls SNOW for new RITMs
 ├── dependencies/
 │   └── de/decision-environment.yml           ← ServiceNow Decision Environment
 ├── ansible_deployment/cac/
@@ -144,8 +133,6 @@ Create a ServiceNow incident with "Server Onboarding" in the short description, 
 | Credential | Purpose | When Needed |
 |------------|---------|-------------|
 | AAP OAuth Token | CaC deployment | Before CaC |
-| ServiceNow credentials | CR management + EDA polling | Before CaC |
+| ServiceNow credentials | RITM work notes + EDA polling | Before CaC |
 | GitHub PAT | Audit report commits | Before CaC |
 | AO Webhook credentials | EDA-to-AO bridge | After publishing workflow |
-| AO Service Account | CR approval bridge | After publishing workflow |
-| DE image | EDA Decision Environment | Before CaC |

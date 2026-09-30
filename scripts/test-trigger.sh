@@ -28,7 +28,7 @@ if [[ -z "${AO_WEBHOOK_BASE_URL:-}" || -z "${AO_WEBHOOK_PATH:-}" || -z "${AO_WEB
   exit 1
 fi
 
-PAYLOAD="${1:-{\"request_description\":\"New server needed: webserver-prod-01, RHEL 9, production environment. Needs DNS, monitoring, CMDB, and backup registration.\",\"requested_by\":\"Jane Smith\"}}"
+PAYLOAD="${1:-{\"server_name\":\"db-prod-01\",\"os_type\":\"RHEL 9\",\"environment\":\"prod\",\"application\":\"PostgreSQL\",\"ritm_number\":\"RITM0010001\",\"ritm_sys_id\":\"test-sys-id\"}}"
 
 echo "Authenticating with AO..."
 TOKEN=$(curl -sk -X POST "${AO_WEBHOOK_BASE_URL}/api/v1/auth/token" \

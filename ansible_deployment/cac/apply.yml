@@ -31,18 +31,10 @@
     ao_webhook_client_id: "{{ lookup('env', 'AO_WEBHOOK_CLIENT_ID') | default('placeholder', true) }}"
     ao_webhook_client_secret: "{{ lookup('env', 'AO_WEBHOOK_CLIENT_SECRET') | default('placeholder', true) }}"
 
-    # AO API Service Account (for approval bridge)
-    ao_sa_client_id: "{{ lookup('env', 'AO_SA_CLIENT_ID') | default('placeholder', true) }}"
-    ao_sa_client_secret: "{{ lookup('env', 'AO_SA_CLIENT_SECRET') | default('placeholder', true) }}"
-    ao_base_url: "{{ lookup('env', 'AO_WEBHOOK_BASE_URL') | default(omit, true) }}"
-
     # GitHub
     github_repo: "{{ lookup('env', 'GITHUB_REPO') | default('crenwick93/ao-overview-demo', true) }}"
     git_repo_url: "{{ 'https://github.com/' ~ github_repo ~ '.git' }}"
     github_token: "{{ lookup('env', 'GITHUB_TOKEN') | default('placeholder', true) }}"
-
-    # EDA Decision Environment image
-    de_image: "{{ lookup('env', 'DE_IMAGE') | default('YOUR_REGISTRY/snow-de:latest', true) }}"
 
   vars_files:
     - vars.yml

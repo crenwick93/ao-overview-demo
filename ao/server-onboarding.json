@@ -1,31 +1,39 @@
 {
   "schema_version": "2.0.0",
   "name": "Server Onboarding",
-  "description": "End-to-end server onboarding: EDA trigger from ServiceNow, AI classification, governance via CR, environment routing with approval gates, parallel Day 1 registrations, validation, and Git audit trail. Work notes update in ServiceNow at every milestone.",
+  "description": "End-to-end server onboarding: EDA trigger from ServiceNow service request, environment routing with approval gate, parallel Day 1 registrations, validation, and Git audit trail. Work notes update on the RITM at every milestone.",
   "triggers": [
     {
-      "id": "trigger_snow_request",
+      "id": "trigger_snow",
       "type": "eda_trigger",
       "name": "ServiceNow Request",
       "parameters": {
         "input_schema": {
           "type": "object",
           "properties": {
-            "request_description": {
+            "server_name": {
               "type": "string",
-              "description": "ServiceNow request description (free text from requester)"
+              "description": "Requested hostname"
             },
-            "requested_by": {
+            "os_type": {
               "type": "string",
-              "description": "Name of the person who submitted the request"
+              "description": "Operating system (e.g. RHEL 9)"
             },
-            "incident_number": {
+            "environment": {
               "type": "string",
-              "description": "ServiceNow incident number (from EDA)"
+              "description": "Target environment: dev, staging, or prod"
             },
-            "incident_sys_id": {
+            "application": {
               "type": "string",
-              "description": "ServiceNow incident sys_id (from EDA)"
+              "description": "Application to install (e.g. PostgreSQL)"
+            },
+            "ritm_number": {
+              "type": "string",
+              "description": "ServiceNow RITM number"
+            },
+            "ritm_sys_id": {
+              "type": "string",
+              "description": "ServiceNow RITM sys_id"
             }
           }
         }
@@ -35,54 +43,19 @@
   ],
   "nodes": [
     {
-      "id": "ai_classify",
-      "type": "agentic",
-      "name": "AI: Classify Request",
-      "parameters": {
-        "model": "granite-3.3-8b",
-        "prompt": "You are a server onboarding assistant. Read the following ServiceNow request and extract structured information.\n\nRequest: ${trigger_snow_request.request_description}\n\nExtract:\n- server_name: the requested hostname\n- os_type: the operating system (default to RHEL 9 if not specified)\n- environment: dev, staging, or prod\n- services_needed: list of services to register (default: dns, monitoring, cmdb, backup)\n\nRespond with just the extracted fields.",
-        "response_schema": {
-          "type": "object",
-          "properties": {
-            "server_name": { "type": "string" },
-            "os_type": { "type": "string" },
-            "environment": { "type": "string", "enum": ["dev", "staging", "prod"] },
-            "services_needed": { "type": "array", "items": { "type": "string" } }
-          }
-        }
-      },
-      "position": { "x": 400, "y": 100 }
-    },
-    {
-      "id": "create_cr",
+      "id": "note_received",
       "type": "aap_job_template",
-      "name": "Create Tracking CR",
+      "name": "Work Note: Request Received",
       "parameters": {
-        "job_template_name": "Manage SNOW Change Request",
-        "organization_name": "Default",
-        "extra_vars": {
-          "action": "create",
-          "short_description": "Server Onboarding: ${ai_classify.result.content.server_name}",
-          "justification": "New server request classified by AI. Server: ${ai_classify.result.content.server_name}, OS: ${ai_classify.result.content.os_type}, Env: ${ai_classify.result.content.environment}",
-          "inc_sys_id": "${trigger_snow_request.incident_sys_id}"
-        }
-      },
-      "position": { "x": 400, "y": 200 }
-    },
-    {
-      "id": "update_cr_classify",
-      "type": "aap_job_template",
-      "name": "CR Note: AI Classification",
-      "parameters": {
-        "job_template_name": "Manage SNOW Change Request",
+        "job_template_name": "Manage SNOW Request",
         "organization_name": "Default",
         "extra_vars": {
           "action": "update",
-          "cr_sys_id": "${create_cr.artifacts.cr_sys_id}",
-          "work_notes": "[code]<h3>AI Classification Complete</h3><p>Server: ${ai_classify.result.content.server_name}<br>OS: ${ai_classify.result.content.os_type}<br>Environment: ${ai_classify.result.content.environment}<br>Services: dns, monitoring, cmdb, backup</p>[/code]"
+          "ritm_sys_id": "${trigger_snow.ritm_sys_id}",
+          "work_notes": "<h3>Request Picked Up by AO</h3><p>Server: ${trigger_snow.server_name}<br>OS: ${trigger_snow.os_type}<br>Environment: ${trigger_snow.environment}<br>Application: ${trigger_snow.application}<br><br>Workflow started.</p>"
         }
       },
-      "position": { "x": 400, "y": 300 }
+      "position": { "x": 400, "y": 100 }
     },
     {
       "id": "env_switch",
@@ -93,31 +66,31 @@
           {
             "port": "case_dev",
             "label": "Development",
-            "condition": "${ai_classify.result.content.environment} == 'dev'"
+            "condition": "${trigger_snow.environment} == 'dev'"
           },
           {
             "port": "case_staging",
             "label": "Staging",
-            "condition": "${ai_classify.result.content.environment} == 'staging'"
+            "condition": "${trigger_snow.environment} == 'staging'"
           },
           {
             "port": "case_prod",
             "label": "Production",
-            "condition": "${ai_classify.result.content.environment} == 'prod'"
+            "condition": "${trigger_snow.environment} == 'prod'"
           }
         ]
       },
-      "position": { "x": 400, "y": 400 }
+      "position": { "x": 400, "y": 200 }
     },
     {
       "id": "prod_approval",
       "type": "approval",
       "name": "CAB Approval",
       "parameters": {
-        "description": "Production server onboarding requires CAB approval before provisioning. Approve in AO or bridge from ServiceNow CR.",
+        "description": "Production server onboarding requires CAB approval before provisioning.",
         "timeout": 0
       },
-      "position": { "x": 700, "y": 500 }
+      "position": { "x": 700, "y": 300 }
     },
     {
       "id": "provision",
@@ -127,27 +100,27 @@
         "job_template_name": "Simulate Provision",
         "organization_name": "Default",
         "extra_vars": {
-          "server_name": "${ai_classify.result.content.server_name}",
-          "os_type": "${ai_classify.result.content.os_type}",
-          "environment": "${ai_classify.result.content.environment}"
+          "server_name": "${trigger_snow.server_name}",
+          "os_type": "${trigger_snow.os_type}",
+          "environment": "${trigger_snow.environment}"
         }
       },
-      "position": { "x": 400, "y": 600 }
+      "position": { "x": 400, "y": 400 }
     },
     {
-      "id": "update_cr_provision",
+      "id": "note_provision",
       "type": "aap_job_template",
-      "name": "CR Note: Provisioned",
+      "name": "Work Note: Provisioned",
       "parameters": {
-        "job_template_name": "Manage SNOW Change Request",
+        "job_template_name": "Manage SNOW Request",
         "organization_name": "Default",
         "extra_vars": {
           "action": "update",
-          "cr_sys_id": "${create_cr.artifacts.cr_sys_id}",
-          "work_notes": "[code]<h3>Server Provisioned</h3><p>Server: ${ai_classify.result.content.server_name}<br>IP: ${provision.artifacts.server_ip}<br>FQDN: ${provision.artifacts.server_fqdn}<br>Status: ${provision.artifacts.provision_status}</p>[/code]"
+          "ritm_sys_id": "${trigger_snow.ritm_sys_id}",
+          "work_notes": "<h3>Server Provisioned</h3><p>Server: ${trigger_snow.server_name}<br>IP: ${provision.artifacts.server_ip}<br>FQDN: ${provision.artifacts.server_fqdn}<br>Application: ${trigger_snow.application}<br>Status: ${provision.artifacts.provision_status}</p>"
         }
       },
-      "position": { "x": 400, "y": 700 }
+      "position": { "x": 400, "y": 500 }
     },
     {
       "id": "register_dns",
@@ -158,11 +131,11 @@
         "organization_name": "Default",
         "extra_vars": {
           "service_name": "dns",
-          "server_name": "${ai_classify.result.content.server_name}",
+          "server_name": "${trigger_snow.server_name}",
           "server_ip": "${provision.artifacts.server_ip}"
         }
       },
-      "position": { "x": 100, "y": 800 }
+      "position": { "x": 100, "y": 600 }
     },
     {
       "id": "register_monitoring",
@@ -173,11 +146,11 @@
         "organization_name": "Default",
         "extra_vars": {
           "service_name": "monitoring",
-          "server_name": "${ai_classify.result.content.server_name}",
+          "server_name": "${trigger_snow.server_name}",
           "server_ip": "${provision.artifacts.server_ip}"
         }
       },
-      "position": { "x": 300, "y": 800 }
+      "position": { "x": 300, "y": 600 }
     },
     {
       "id": "register_cmdb",
@@ -188,11 +161,11 @@
         "organization_name": "Default",
         "extra_vars": {
           "service_name": "cmdb",
-          "server_name": "${ai_classify.result.content.server_name}",
+          "server_name": "${trigger_snow.server_name}",
           "server_ip": "${provision.artifacts.server_ip}"
         }
       },
-      "position": { "x": 500, "y": 800 }
+      "position": { "x": 500, "y": 600 }
     },
     {
       "id": "register_backup",
@@ -203,11 +176,11 @@
         "organization_name": "Default",
         "extra_vars": {
           "service_name": "backup",
-          "server_name": "${ai_classify.result.content.server_name}",
+          "server_name": "${trigger_snow.server_name}",
           "server_ip": "${provision.artifacts.server_ip}"
         }
       },
-      "position": { "x": 700, "y": 800 }
+      "position": { "x": 700, "y": 600 }
     },
     {
       "id": "validate",
@@ -217,41 +190,26 @@
         "job_template_name": "Validate Server",
         "organization_name": "Default",
         "extra_vars": {
-          "server_name": "${ai_classify.result.content.server_name}",
+          "server_name": "${trigger_snow.server_name}",
           "server_ip": "${provision.artifacts.server_ip}"
         }
       },
-      "position": { "x": 400, "y": 900 }
+      "position": { "x": 400, "y": 700 }
     },
     {
-      "id": "update_cr_validated",
+      "id": "note_validated",
       "type": "aap_job_template",
-      "name": "CR Note: Validated",
+      "name": "Work Note: Validated",
       "parameters": {
-        "job_template_name": "Manage SNOW Change Request",
+        "job_template_name": "Manage SNOW Request",
         "organization_name": "Default",
         "extra_vars": {
           "action": "update",
-          "cr_sys_id": "${create_cr.artifacts.cr_sys_id}",
-          "work_notes": "[code]<h3>All Validations Passed</h3><p>DNS: ✅ Registered<br>Monitoring: ✅ Registered<br>CMDB: ✅ Registered<br>Backup: ✅ Registered<br><br>Server ${ai_classify.result.content.server_name} is Day 1 ready.</p>[/code]"
+          "ritm_sys_id": "${trigger_snow.ritm_sys_id}",
+          "work_notes": "<h3>All Validations Passed</h3><p>DNS: ✅ Registered<br>Monitoring: ✅ Registered<br>CMDB: ✅ Registered<br>Backup: ✅ Registered<br><br>Server ${trigger_snow.server_name} (${trigger_snow.application}) is Day 1 ready.</p>"
         }
       },
-      "position": { "x": 400, "y": 1000 }
-    },
-    {
-      "id": "review_cr",
-      "type": "aap_job_template",
-      "name": "Review CR",
-      "parameters": {
-        "job_template_name": "Manage SNOW Change Request",
-        "organization_name": "Default",
-        "extra_vars": {
-          "action": "review",
-          "cr_sys_id": "${create_cr.artifacts.cr_sys_id}",
-          "work_notes": "[code]<h3>Onboarding Complete</h3><p>All steps completed successfully. Change request ready for review.</p>[/code]"
-        }
-      },
-      "position": { "x": 250, "y": 1100 }
+      "position": { "x": 400, "y": 800 }
     },
     {
       "id": "git_commit",
@@ -262,34 +220,47 @@
         "organization_name": "Default",
         "extra_vars": {
           "action": "commit_file",
-          "file_path": "reports/${ai_classify.result.content.server_name}-onboarding.md",
+          "file_path": "reports/${trigger_snow.server_name}-onboarding.md",
           "file_content": "${validate.artifacts.validation_report}",
-          "commit_message": "Onboarding report: ${ai_classify.result.content.server_name}"
+          "commit_message": "Onboarding report: ${trigger_snow.server_name}"
         }
       },
-      "position": { "x": 550, "y": 1100 }
+      "position": { "x": 550, "y": 900 }
+    },
+    {
+      "id": "close_request",
+      "type": "aap_job_template",
+      "name": "Close Request",
+      "parameters": {
+        "job_template_name": "Manage SNOW Request",
+        "organization_name": "Default",
+        "extra_vars": {
+          "action": "close",
+          "ritm_sys_id": "${trigger_snow.ritm_sys_id}",
+          "work_notes": "<h3>Server Onboarding Complete</h3><p>Server ${trigger_snow.server_name} with ${trigger_snow.application} fully onboarded and Day 1 ready. All services registered and validated. Audit report committed to Git.</p>"
+        }
+      },
+      "position": { "x": 250, "y": 900 }
     }
   ],
   "edges": [
-    { "from": "trigger_snow_request", "to": "ai_classify" },
-    { "from": "ai_classify", "to": "create_cr" },
-    { "from": "create_cr", "to": "update_cr_classify" },
-    { "from": "update_cr_classify", "to": "env_switch" },
+    { "from": "trigger_snow", "to": "note_received" },
+    { "from": "note_received", "to": "env_switch" },
     { "from": "env_switch", "to": "provision", "from_port": "case_dev" },
     { "from": "env_switch", "to": "provision", "from_port": "case_staging" },
     { "from": "env_switch", "to": "prod_approval", "from_port": "case_prod" },
     { "from": "prod_approval", "to": "provision", "from_port": "approved" },
-    { "from": "provision", "to": "update_cr_provision" },
-    { "from": "update_cr_provision", "to": "register_dns" },
-    { "from": "update_cr_provision", "to": "register_monitoring" },
-    { "from": "update_cr_provision", "to": "register_cmdb" },
-    { "from": "update_cr_provision", "to": "register_backup" },
+    { "from": "provision", "to": "note_provision" },
+    { "from": "note_provision", "to": "register_dns" },
+    { "from": "note_provision", "to": "register_monitoring" },
+    { "from": "note_provision", "to": "register_cmdb" },
+    { "from": "note_provision", "to": "register_backup" },
     { "from": "register_dns", "to": "validate" },
     { "from": "register_monitoring", "to": "validate" },
     { "from": "register_cmdb", "to": "validate" },
     { "from": "register_backup", "to": "validate" },
-    { "from": "validate", "to": "update_cr_validated" },
-    { "from": "update_cr_validated", "to": "review_cr" },
-    { "from": "update_cr_validated", "to": "git_commit" }
+    { "from": "validate", "to": "note_validated" },
+    { "from": "note_validated", "to": "close_request" },
+    { "from": "note_validated", "to": "git_commit" }
   ]
 }

@@ -1,0 +1,81 @@
+---
+# ServiceNow Service Request Item (RITM) management.
+# Uses servicenow.itsm.api for the sc_req_item table since there's
+# no dedicated RITM module in the collection.
+#
+# Actions:
+#   update — Add work notes to a RITM
+#   close  — Close/complete a RITM
+#
+# Usage from AO workflow extra_vars:
+#   { "action": "update", "ritm_sys_id": "...", "work_notes": "..." }
+#   { "action": "close",  "ritm_sys_id": "...", "work_notes": "..." }
+
+- name: Manage ServiceNow Request Item
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  tasks:
+    - name: Validate action
+      ansible.builtin.assert:
+        that:
+          - action is defined
+          - action in ['update', 'close']
+        fail_msg: "action must be one of: update, close"
+
+    - name: Validate required parameters
+      ansible.builtin.assert:
+        that:
+          - ritm_sys_id is defined
+          - ritm_sys_id | length > 0
+        fail_msg: "ritm_sys_id must be provided"
+
+    # =========================================================================
+    # ACTION: update — add work notes
+    # =========================================================================
+    - name: Add work notes to request item
+      servicenow.itsm.api:
+        resource: sc_req_item
+        action: patch
+        sys_id: "{{ ritm_sys_id }}"
+        data:
+          work_notes: "[code]{{ work_notes }}[/code]"
+      register: update_result
+      when:
+        - action == 'update'
+        - work_notes is defined
+
+    - name: Display update confirmation
+      ansible.builtin.debug:
+        msg: "RITM {{ ritm_sys_id }} updated with work notes"
+      when: action == 'update'
+
+    # =========================================================================
+    # ACTION: close — complete the request item
+    # =========================================================================
+    - name: Add closing work notes
+      servicenow.itsm.api:
+        resource: sc_req_item
+        action: patch
+        sys_id: "{{ ritm_sys_id }}"
+        data:
+          work_notes: "[code]{{ work_notes }}[/code]"
+      when:
+        - action == 'close'
+        - work_notes is defined
+
+    - name: Close request item
+      servicenow.itsm.api:
+        resource: sc_req_item
+        action: patch
+        sys_id: "{{ ritm_sys_id }}"
+        data:
+          state: "3"
+          close_notes: "{{ close_notes | default('Server onboarding completed by AO workflow.') }}"
+      when: action == 'close'
+
+    - name: Display close confirmation
+      ansible.builtin.debug:
+        msg: "RITM {{ ritm_sys_id }} closed"
+      when: action == 'close'
