@@ -39,6 +39,15 @@
     aws_access_key_id: "{{ lookup('env', 'AWS_ACCESS_KEY_ID') | default('placeholder', true) }}"
     aws_secret_access_key: "{{ lookup('env', 'AWS_SECRET_ACCESS_KEY') | default('placeholder', true) }}"
 
+    # SSH private key for the patching-demo key pair. Read at apply time; never stored in git.
+    _ssh_key_env: "{{ lookup('env', 'SSH_KEY_PATH') | default('patching-demo.pem', true) }}"
+    ssh_key_file: >-
+      {{
+        _ssh_key_env if (_ssh_key_env is match('^/'))
+        else (playbook_dir ~ '/../../' ~ (_ssh_key_env | regex_replace('^\\./', '')))
+      }}
+    ssh_private_key: "{{ lookup('file', ssh_key_file) }}"
+
   vars_files:
     - vars.yml
   roles:

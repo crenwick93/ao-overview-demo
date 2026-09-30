@@ -67,14 +67,29 @@
           Name: "ao-demo-{{ server_name }}"
           Environment: "{{ environment }}"
           managed_by: "ao-overview-demo"
-        wait: true
+        wait: false
         state: running
       register: ec2
 
-    - name: Record instance details
+    - name: Record instance id
       ansible.builtin.set_fact:
-        _instance_id: "{{ ec2.instances[0].instance_id }}"
-        _instance_ip: "{{ ec2.instances[0].public_ip_address }}"
+        _instance_id: "{{ ec2.instance_ids[0] }}"
+
+    - name: Wait for a public IP
+      amazon.aws.ec2_instance_info:
+        region: "{{ aws_region }}"
+        instance_ids:
+          - "{{ _instance_id }}"
+      register: _ip_check
+      until: >-
+        _ip_check.instances | length > 0
+        and (_ip_check.instances[0].public_ip_address | default('') | length) > 0
+      retries: 20
+      delay: 3
+
+    - name: Record instance IP
+      ansible.builtin.set_fact:
+        _instance_ip: "{{ _ip_check.instances[0].public_ip_address }}"
 
     - name: Display provisioning result
       ansible.builtin.debug:

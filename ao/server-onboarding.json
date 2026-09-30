@@ -54,22 +54,17 @@
           {
             "port": "case_dev",
             "label": "Development",
-            "condition": "${trigger_snow.environment} == 'dev'"
-          },
-          {
-            "port": "case_staging",
-            "label": "Staging",
-            "condition": "${trigger_snow.environment} == 'staging'"
+            "condition": "${trigger.environment} == 'dev'"
           },
           {
             "port": "case_prod",
             "label": "Production",
-            "condition": "${trigger_snow.environment} == 'prod'"
+            "condition": "${trigger.environment} == 'prod'"
           }
         ]
       },
       "position": {
-        "x": 350,
+        "x": 500,
         "y": 400
       }
     },
@@ -78,12 +73,11 @@
       "type": "approval",
       "name": "CAB Approval",
       "parameters": {
-        "description": "Production server onboarding requires CAB approval before provisioning.",
-        "timeout": 0
+        "prompt": "Production server onboarding requires CAB approval before provisioning."
       },
       "position": {
-        "x": 650,
-        "y": 100
+        "x": 1000,
+        "y": 0
       }
     },
     {
@@ -94,14 +88,14 @@
         "job_template_name": "Provision Server",
         "organization_name": "Default",
         "extra_vars": {
-          "server_name": "${trigger_snow.server_name}",
-          "os_type": "${trigger_snow.os_type}",
-          "environment": "${trigger_snow.environment}",
-          "ritm_sys_id": "${trigger_snow.ritm_sys_id}"
+          "server_name": "${trigger.server_name}",
+          "os_type": "${trigger.os_type}",
+          "environment": "${trigger.environment}",
+          "ritm_sys_id": "${trigger.ritm_sys_id}"
         }
       },
       "position": {
-        "x": 750,
+        "x": 1500,
         "y": 400
       }
     },
@@ -110,99 +104,13 @@
       "type": "loop",
       "name": "Retry Until Ready",
       "parameters": {
-        "loop_type": "while",
+        "type": "do_while",
         "max_iterations": 10,
-        "condition": "${check_server_ready.artifacts.server_ready} != true"
+        "condition": "${check_server_ready.artifacts.server_ready} == \"false\""
       },
       "position": {
-        "x": 1100,
+        "x": 2100,
         "y": 400
-      }
-    },
-    {
-      "id": "wait_between_checks",
-      "type": "wait",
-      "name": "Wait 30s",
-      "parameters": {
-        "duration": 30
-      },
-      "position": {
-        "x": 1450,
-        "y": 400
-      }
-    },
-    {
-      "id": "check_server_ready",
-      "type": "aap_job_template",
-      "name": "Check Server Ready",
-      "parameters": {
-        "job_template_name": "Check Server Ready",
-        "organization_name": "Default",
-        "extra_vars": {
-          "server_name": "${trigger_snow.server_name}",
-          "server_ip": "${provision.artifacts.server_ip}"
-        }
-      },
-      "position": {
-        "x": 1800,
-        "y": 400
-      }
-    },
-    {
-      "id": "register_dns",
-      "type": "aap_job_template",
-      "name": "Register DNS",
-      "parameters": {
-        "job_template_name": "Register Service",
-        "organization_name": "Default",
-        "extra_vars": {
-          "service_name": "dns",
-          "server_name": "${trigger_snow.server_name}",
-          "server_ip": "${provision.artifacts.server_ip}",
-          "ritm_sys_id": "${trigger_snow.ritm_sys_id}"
-        }
-      },
-      "position": {
-        "x": 2200,
-        "y": 100
-      }
-    },
-    {
-      "id": "register_monitoring",
-      "type": "aap_job_template",
-      "name": "Register Monitoring",
-      "parameters": {
-        "job_template_name": "Register Service",
-        "organization_name": "Default",
-        "extra_vars": {
-          "service_name": "monitoring",
-          "server_name": "${trigger_snow.server_name}",
-          "server_ip": "${provision.artifacts.server_ip}",
-          "ritm_sys_id": "${trigger_snow.ritm_sys_id}"
-        }
-      },
-      "position": {
-        "x": 2200,
-        "y": 300
-      }
-    },
-    {
-      "id": "register_cmdb",
-      "type": "aap_job_template",
-      "name": "Register CMDB",
-      "parameters": {
-        "job_template_name": "Register Service",
-        "organization_name": "Default",
-        "extra_vars": {
-          "service_name": "cmdb",
-          "server_name": "${trigger_snow.server_name}",
-          "server_ip": "${provision.artifacts.server_ip}",
-          "ritm_sys_id": "${trigger_snow.ritm_sys_id}"
-        }
-      },
-      "position": {
-        "x": 2200,
-        "y": 500
       }
     },
     {
@@ -214,14 +122,71 @@
         "organization_name": "Default",
         "extra_vars": {
           "service_name": "backup",
-          "server_name": "${trigger_snow.server_name}",
+          "server_name": "${trigger.server_name}",
           "server_ip": "${provision.artifacts.server_ip}",
-          "ritm_sys_id": "${trigger_snow.ritm_sys_id}"
+          "ritm_sys_id": "${trigger.ritm_sys_id}"
         }
       },
       "position": {
-        "x": 2200,
-        "y": 700
+        "x": 3613.6073025604546,
+        "y": 886.381811359615
+      }
+    },
+    {
+      "id": "register_cmdb",
+      "type": "aap_job_template",
+      "name": "Register CMDB",
+      "parameters": {
+        "job_template_name": "Register Service",
+        "organization_name": "Default",
+        "extra_vars": {
+          "service_name": "cmdb",
+          "server_name": "${trigger.server_name}",
+          "server_ip": "${provision.artifacts.server_ip}",
+          "ritm_sys_id": "${trigger.ritm_sys_id}"
+        }
+      },
+      "position": {
+        "x": 3611.885524479685,
+        "y": 588.1035894403847
+      }
+    },
+    {
+      "id": "register_dns",
+      "type": "aap_job_template",
+      "name": "Register DNS",
+      "parameters": {
+        "job_template_name": "Register Service",
+        "organization_name": "Default",
+        "extra_vars": {
+          "service_name": "dns",
+          "server_name": "${trigger.server_name}",
+          "server_ip": "${provision.artifacts.server_ip}",
+          "ritm_sys_id": "${trigger.ritm_sys_id}"
+        }
+      },
+      "position": {
+        "x": 3617.8875888160765,
+        "y": -1.7933473881997202
+      }
+    },
+    {
+      "id": "register_monitoring",
+      "type": "aap_job_template",
+      "name": "Register Monitoring",
+      "parameters": {
+        "job_template_name": "Register Service",
+        "organization_name": "Default",
+        "extra_vars": {
+          "service_name": "monitoring",
+          "server_name": "${trigger.server_name}",
+          "server_ip": "${provision.artifacts.server_ip}",
+          "ritm_sys_id": "${trigger.ritm_sys_id}"
+        }
+      },
+      "position": {
+        "x": 3617.050858721994,
+        "y": 303.5995921673128
       }
     },
     {
@@ -232,13 +197,13 @@
         "job_template_name": "Validate Server",
         "organization_name": "Default",
         "extra_vars": {
-          "server_name": "${trigger_snow.server_name}",
+          "server_name": "${trigger.server_name}",
           "server_ip": "${provision.artifacts.server_ip}",
-          "ritm_sys_id": "${trigger_snow.ritm_sys_id}"
+          "ritm_sys_id": "${trigger.ritm_sys_id}"
         }
       },
       "position": {
-        "x": 2600,
+        "x": 4200,
         "y": 400
       }
     },
@@ -251,13 +216,42 @@
         "organization_name": "Default",
         "extra_vars": {
           "action": "close",
-          "ritm_sys_id": "${trigger_snow.ritm_sys_id}",
-          "work_notes": "<h3>Server Onboarding Complete</h3><p>Server ${trigger_snow.server_name} with ${trigger_snow.application} fully onboarded and Day 1 ready. All services registered and validated.</p>"
+          "ritm_sys_id": "${trigger.ritm_sys_id}",
+          "work_notes": "<h3>Server Onboarding Complete</h3><p>Server ${trigger.server_name} with ${trigger.application} fully onboarded and Day 1 ready. All services registered and validated.</p>"
         }
       },
       "position": {
-        "x": 2950,
+        "x": 4800,
         "y": 400
+      }
+    },
+    {
+      "id": "check_server_ready",
+      "type": "aap_job_template",
+      "name": "Check Server Ready",
+      "parameters": {
+        "job_template_name": "Check Server Ready",
+        "organization_name": "Default",
+        "extra_vars": {
+          "server_name": "${trigger.server_name}",
+          "server_ip": "${provision.artifacts.server_ip}"
+        }
+      },
+      "position": {
+        "x": 2650,
+        "y": 750
+      }
+    },
+    {
+      "id": "wait_between_checks",
+      "type": "wait",
+      "name": "Wait 30s",
+      "parameters": {
+        "duration": 30
+      },
+      "position": {
+        "x": 2100,
+        "y": 750
       }
     }
   ],
@@ -273,11 +267,6 @@
     },
     {
       "from": "env_switch",
-      "to": "provision",
-      "from_port": "case_staging"
-    },
-    {
-      "from": "env_switch",
       "to": "prod_approval",
       "from_port": "case_prod"
     },
@@ -285,22 +274,6 @@
       "from": "prod_approval",
       "to": "provision",
       "from_port": "approved"
-    },
-    {
-      "from": "provision",
-      "to": "server_ready_loop"
-    },
-    {
-      "from": "server_ready_loop",
-      "to": "wait_between_checks"
-    },
-    {
-      "from": "wait_between_checks",
-      "to": "check_server_ready"
-    },
-    {
-      "from": "check_server_ready",
-      "to": "server_ready_loop"
     },
     {
       "from": "server_ready_loop",
@@ -341,6 +314,24 @@
     {
       "from": "validate",
       "to": "close_request"
+    },
+    {
+      "from": "provision",
+      "to": "server_ready_loop"
+    },
+    {
+      "from": "server_ready_loop",
+      "to": "wait_between_checks",
+      "from_port": "iterate"
+    },
+    {
+      "from": "wait_between_checks",
+      "to": "check_server_ready"
+    },
+    {
+      "from": "check_server_ready",
+      "to": "server_ready_loop",
+      "to_port": "iterate"
     }
   ]
 }

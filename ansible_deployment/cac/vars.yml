@@ -88,6 +88,14 @@ controller_credentials:
       username: "{{ aws_access_key_id }}"
       password: "{{ aws_secret_access_key }}"
 
+  - name: "Demo SSH Key"
+    description: "patching-demo key pair used to SSH to demo EC2 instances"
+    organization: "Default"
+    credential_type: "Machine"
+    inputs:
+      username: "ec2-user"
+      ssh_key_data: "{{ ssh_private_key }}"
+
 # -----------------------------------------------------------------------------
 # Inventories
 # -----------------------------------------------------------------------------
@@ -155,14 +163,16 @@ controller_templates:
 
   - name: "Check Server Ready"
     description: >-
-      Checks if a provisioned server is reachable on SSH (port 22).
-      Used inside a While loop. Publishes server_ready via set_stats.
+      Attempts an SSH login to a server. Used inside a While loop.
+      Publishes server_ready via set_stats.
     organization: "Default"
     job_type: "run"
     project: "AO Overview Demo"
     playbook: "playbooks/check_server_ready.yml"
     inventory: "Demo Inventory"
     ask_variables_on_launch: true
+    credentials:
+      - "Demo SSH Key"
 
   - name: "Register Service"
     description: >-
