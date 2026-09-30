@@ -35,9 +35,9 @@
             extra_vars:
               webhook_path: "{{ webhook_path }}"
               event_payload:
-                server_name: "{{ event.short_description | regex_replace('(?i)server onboarding:\\s*', '') | regex_replace(',.*', '') | trim }}"
-                os_type: "RHEL 9"
-                environment: "prod"
-                application: "PostgreSQL"
+                server_name: "{{ event.short_description.split(':', 1)[-1].split(',')[0] | trim }}"
+                environment: "{{ (event.short_description.split(',')[1] | trim | lower) if (',' in event.short_description) else 'dev' }}"
+                os_type: "{{ (event.short_description.split(',')[2] | trim) if (event.short_description.count(',') > 1) else 'RHEL 9' }}"
+                application: "{{ (event.short_description.split(',')[3] | trim) if (event.short_description.count(',') > 2) else 'PostgreSQL' }}"
                 ritm_number: "{{ event.number }}"
                 ritm_sys_id: "{{ event.sys_id }}"
