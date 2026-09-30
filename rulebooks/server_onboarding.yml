@@ -1,0 +1,75 @@
+---
+# EDA rulebook for AO Overview Demo — Server Onboarding.
+#
+# Rule 1: Poll ServiceNow for new incidents matching "Server Onboarding"
+#         and trigger the AO workflow via the EDA-to-AO bridge.
+#
+# Rule 2: Poll ServiceNow change requests for CR approval → bridge to AO.
+#
+# Requires a Decision Environment with servicenow.itsm.
+# See dependencies/de/decision-environment.yml.
+
+# ─── Rule 1: New Server Requests ──────────────────────────────────────────────
+- name: Monitor ServiceNow for server onboarding requests
+  hosts: all
+  execution_strategy: parallel
+  sources:
+    - servicenow.itsm.records:
+        table: incident
+        interval: 10
+        remote_servicenow_timezone: "Europe/London"
+        sysparm_query: >
+          ORDERBYDESCsys_updated_on^ORDERBYDESCsys_id
+      filters:
+        - ansible.eda.json_filter:
+        - ansible.eda.normalize_keys:
+  rules:
+    - name: Trigger AO server onboarding workflow
+      throttle:
+        once_within: 10 minutes
+        group_by_attributes:
+          - sys_id
+      condition: event.short_description is match("Server Onboarding", ignorecase=true)
+      action:
+        run_job_template:
+          name: AO Workflow Bridge
+          organization: Default
+          post_events: true
+          job_args:
+            extra_vars:
+              webhook_path: "{{ webhook_path }}"
+              event_payload:
+                request_description: "{{ event.short_description ~ ' ' ~ event.description }}"
+                requested_by: "{{ event.caller_id }}"
+                incident_number: "{{ event.number }}"
+                incident_sys_id: "{{ event.sys_id }}"
+
+# ─── Rule 2: ServiceNow CR Approval Bridge ───────────────────────────────────
+- name: ServiceNow CR Approval Bridge
+  hosts: all
+  sources:
+    - servicenow.itsm.records:
+        table: change_request
+        interval: 10
+        remote_servicenow_timezone: "Europe/London"
+        sysparm_query: >
+          ORDERBYDESCsys_updated_on^ORDERBYDESCsys_id
+      filters:
+        - ansible.eda.json_filter:
+        - ansible.eda.normalize_keys:
+  rules:
+    - name: CR moved to Implement — bridge approval to AO
+      throttle:
+        once_within: 10 minutes
+        group_by_attributes:
+          - sys_id
+      condition: event.state == '-1'
+      action:
+        run_job_template:
+          name: Bridge AO Approval
+          organization: Default
+          job_args:
+            extra_vars:
+              cr_number: "{{ event.number }}"
+              cr_sys_id: "{{ event.sys_id }}"
+              cr_short_description: "{{ event.short_description }}"

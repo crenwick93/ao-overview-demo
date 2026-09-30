@@ -2,8 +2,7 @@
 # =============================================================================
 # AAP Configuration as Code — AO Overview Demo (Server Onboarding)
 # =============================================================================
-# Defines all AAP Controller objects for the AO Overview Demo.
-# EDA is not used — the workflow is triggered manually or via test-trigger.sh.
+# Defines all AAP Controller + EDA objects for the AO Overview Demo.
 
 # -----------------------------------------------------------------------------
 # Custom Credential Types
@@ -29,6 +28,27 @@ controller_credential_types:
         SN_HOST: !unsafe "{{ SN_HOST }}"
         SN_USERNAME: !unsafe "{{ SN_USERNAME }}"
         SN_PASSWORD: !unsafe "{{ SN_PASSWORD }}"
+
+  - name: "AO Webhook Credential"
+    description: "OAuth2 service account for Automation Orchestrator EDA trigger"
+    kind: cloud
+    inputs:
+      fields:
+        - id: webhook_base_url
+          type: string
+          label: "AO Base URL"
+        - id: webhook_client_id
+          type: string
+          label: "Service Account Client ID"
+        - id: webhook_client_secret
+          type: string
+          label: "Service Account Client Secret"
+          secret: true
+    injectors:
+      extra_vars:
+        webhook_base_url: !unsafe "{{ webhook_base_url }}"
+        webhook_client_id: !unsafe "{{ webhook_client_id }}"
+        webhook_client_secret: !unsafe "{{ webhook_client_secret }}"
 
   - name: "GitHub API Token"
     description: "Personal access token for GitHub API operations (commits, PRs)"
@@ -58,7 +78,6 @@ controller_credential_types:
         - id: ao_base_url
           type: string
           label: "AO API Base URL"
-          help_text: "Internal or external URL for the AO API (e.g. https://ao.example.com)"
     injectors:
       extra_vars:
         ao_sa_client_id: !unsafe "{{ ao_sa_client_id }}"
@@ -86,6 +105,15 @@ controller_credentials:
       host: "{{ (aap_hostname | regex_replace('/+$','')) ~ '/api/controller/' }}"
       oauth_token: "{{ aap_token }}"
       verify_ssl: "{{ aap_validate_certs }}"
+
+  - name: "AO Webhook"
+    description: "OAuth2 credentials for AO EDA trigger endpoint"
+    organization: "Default"
+    credential_type: "AO Webhook Credential"
+    inputs:
+      webhook_base_url: "{{ ao_webhook_base_url }}"
+      webhook_client_id: "{{ ao_webhook_client_id }}"
+      webhook_client_secret: "{{ ao_webhook_client_secret }}"
 
   - name: "AO API"
     description: "Service account for AO approval bridge"
@@ -127,7 +155,35 @@ controller_projects:
 # Job Templates
 # -----------------------------------------------------------------------------
 controller_templates:
-  # --- Baseline reusable templates ---
+  # --- EDA-to-AO bridge ---
+
+  - name: "AO Workflow Bridge"
+    description: >-
+      EDA-to-AO bridge: obtains OAuth2 token from Automation Orchestrator
+      and POSTs the event payload to the AO EDA trigger endpoint.
+    organization: "Default"
+    job_type: "run"
+    project: "AO Overview Demo"
+    playbook: "playbooks/trigger_ao_workflow.yml"
+    inventory: "Demo Inventory"
+    ask_variables_on_launch: true
+    credentials:
+      - "AO Webhook"
+
+  # --- ServiceNow templates ---
+
+  - name: "Manage SNOW Incident"
+    description: >-
+      All ServiceNow incident operations: create, update, resolve.
+      Pass action=create|update|resolve in extra_vars.
+    organization: "Default"
+    job_type: "run"
+    project: "AO Overview Demo"
+    playbook: "playbooks/manage_snow_incident.yml"
+    inventory: "Demo Inventory"
+    ask_variables_on_launch: true
+    credentials:
+      - "ServiceNow ITSM"
 
   - name: "Manage SNOW Change Request"
     description: >-
@@ -155,6 +211,8 @@ controller_templates:
     credentials:
       - "AO API"
 
+  # --- Git ---
+
   - name: "Manage Git Repo"
     description: >-
       GitHub operations: commit audit reports to the project repo.
@@ -168,7 +226,7 @@ controller_templates:
     credentials:
       - "GitHub API"
 
-  # --- Server onboarding stub templates ---
+  # --- Server onboarding stubs ---
 
   - name: "Simulate Provision"
     description: >-
@@ -214,3 +272,89 @@ controller_templates:
     playbook: "playbooks/generate_report.yml"
     inventory: "Demo Inventory"
     ask_variables_on_launch: true
+
+# =============================================================================
+# Event-Driven Ansible
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# EDA Credential Types
+# -----------------------------------------------------------------------------
+eda_credential_types:
+  - name: "ServiceNow Credential"
+    description: "ServiceNow instance credentials for EDA source plugins"
+    inputs:
+      fields:
+        - id: SN_HOST
+          type: string
+          label: "ServiceNow Instance URL"
+        - id: SN_USERNAME
+          type: string
+          label: "Username"
+        - id: SN_PASSWORD
+          type: string
+          label: "Password"
+          secret: true
+    injectors:
+      env:
+        SN_HOST: !unsafe "{{ SN_HOST }}"
+        SN_USERNAME: !unsafe "{{ SN_USERNAME }}"
+        SN_PASSWORD: !unsafe "{{ SN_PASSWORD }}"
+
+# -----------------------------------------------------------------------------
+# EDA Decision Environments
+# -----------------------------------------------------------------------------
+eda_decision_environments:
+  - name: "ServiceNow DE"
+    description: "Decision environment with servicenow.itsm for SNOW polling"
+    organization: "Default"
+    image_url: "{{ de_image }}"
+
+# -----------------------------------------------------------------------------
+# EDA Projects
+# -----------------------------------------------------------------------------
+eda_projects:
+  - name: "AO Overview Demo"
+    description: "EDA rulebooks for server onboarding"
+    organization: "Default"
+    url: "{{ git_repo_url }}"
+    wait: true
+
+# -----------------------------------------------------------------------------
+# EDA Credentials
+# -----------------------------------------------------------------------------
+eda_credentials:
+  - name: "AAP Controller Token"
+    description: "Controller credential so EDA can launch job templates"
+    credential_type: "Red Hat Ansible Automation Platform"
+    organization: "Default"
+    inputs:
+      host: "{{ (aap_hostname | regex_replace('/+$','')) ~ '/api/controller/' }}"
+      oauth_token: "{{ aap_token }}"
+      verify_ssl: false
+
+  - name: "ServiceNow EDA"
+    description: "ServiceNow credentials for the EDA records source plugin"
+    credential_type: "ServiceNow Credential"
+    organization: "Default"
+    inputs:
+      SN_HOST: "{{ sn_instance }}"
+      SN_USERNAME: "{{ sn_username }}"
+      SN_PASSWORD: "{{ sn_password }}"
+
+# -----------------------------------------------------------------------------
+# Rulebook Activations
+# -----------------------------------------------------------------------------
+eda_rulebook_activations:
+  - name: "ao-overview-demo-events"
+    description: "Monitor ServiceNow for server onboarding requests and CR approvals"
+    organization: "Default"
+    project: "AO Overview Demo"
+    rulebook: "server_onboarding.yml"
+    decision_environment: "ServiceNow DE"
+    enabled: true
+    extra_vars:
+      webhook_path: "{{ ao_webhook_path }}"
+    eda_credentials:
+      - "AAP Controller Token"
+      - "ServiceNow EDA"

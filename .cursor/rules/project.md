@@ -8,13 +8,24 @@
 
 ## What This Project Is
 
-A live-build demo for Automation Orchestrator. The narrative is **Server Onboarding** — a ServiceNow request triggers an AO workflow that orchestrates provisioning, parallel service registrations, validation, and audit trail.
+A two-part AO demo for a customer evaluating Aria → AO migration:
 
-The workflow is built on the AO canvas during the demo. Playbooks and CaC are pre-deployed.
+1. **Working workflow** — pre-imported, triggered by a real ServiceNow incident via EDA, updates SNOW work notes at every milestone
+2. **Live build** — build the same workflow from scratch on the AO canvas during the session
+
+The narrative is **Server Onboarding**. Playbooks simulate the actions (no real VMs) — the workflow structure and AO features are the star.
+
+## Demo Flow
+
+1. Show the working workflow executing end-to-end (create SNOW incident → EDA → AO → work notes)
+2. Build a fresh workflow on the empty canvas, explaining each feature
+3. Map it to the customer's Aria workflow
 
 ## Playbooks
 
 ### Reusable (from ao-baseline)
+- `trigger_ao_workflow.yml` — EDA-to-AO bridge (called by EDA activation)
+- `manage_snow_incident.yml` — incident lifecycle: `action: create|update|resolve`
 - `manage_snow_change_request.yml` — CR lifecycle: `action: create|authorize|update|review|close`
 - `bridge_ao_approval.yml` — bridges SNOW CR approval to AO approval gate
 - `manage_git_repo.yml` — `action: commit_file|create_pr`
@@ -24,6 +35,13 @@ The workflow is built on the AO canvas during the demo. Playbooks and CaC are pr
 - `register_service.yml` — takes `service_name` (dns|monitoring|cmdb|backup), `server_name`, `server_ip` → publishes `registration_status`
 - `validate_server.yml` — takes `server_name`, `server_ip` → publishes `validation_passed`, `validation_report`
 - `generate_report.yml` — takes all prior artifacts → publishes `report_content`, `report_file_path`
+
+## EDA
+
+- Rulebook: `rulebooks/server_onboarding.yml`
+- Polls `incident` table for short_description matching "Server Onboarding"
+- Also polls `change_request` table for CR approval → AO bridge
+- Requires a DE with `servicenow.itsm` (see `dependencies/de/`)
 
 ## Key Technical Decisions
 
@@ -40,33 +58,38 @@ The workflow is built on the AO canvas during the demo. Playbooks and CaC are pr
 - `close_code` must be `"Solution provided"` (not `"Solved (Permanently)"`)
 - Resolving an incident is a two-step operation: add work notes first, then resolve
 - Work notes must be wrapped in `[code]...[/code]` tags for proper HTML rendering
+- AI output should use HTML formatting (`<h3>`, `<p>`, `<ul>`, `<code>`)
+
+### EDA Gotchas
+- **Split rulebooks by source type**: webhook sources and polling sources CANNOT share an activation
+- The EDA controller credential needs host URL with `/api/controller/` path suffix
+- The `webhook_path` is passed from EDA activation extra_vars → rulebook → bridge job → AO trigger
+- EDA activation can't be updated by CaC while running — disable in AAP UI first
+- CR approval bridge: `event.state == '-1'` is the Implement state in ServiceNow
 
 ### CaC Gotchas
 - CaC cannot overwrite encrypted credential fields — delete the credential first or edit in AAP UI
-- The controller project must be synced in AAP before CaC can create job templates referencing its playbooks
+- The controller project must be synced in AAP before CaC can create job templates
+- The EDA project must also be synced separately for rulebook activations
+- Two-pass CaC: first run creates objects with placeholder creds, second run updates with real creds
 - Uses `set -a; source .env; set +a` pattern for loading env vars
 
 ### Action-Based Playbook Pattern
 - `manage_snow_change_request.yml` — `action: create|authorize|update|review|close`
 - `manage_git_repo.yml` — `action: commit_file|create_pr`
-- AO workflow nodes call the same job template with different `action` values in extra_vars
 - The `create`/`commit_file` actions publish identifiers via `set_stats` — subsequent nodes reference them as `${node.artifacts.field}`
 
-### GitHub Integration
-- Uses GitHub REST API (Contents API for commits, Pulls API for PRs)
-- `GITHUB_TOKEN` is injected as env var by the "GitHub API Token" credential type
-- `GITHUB_REPO` is set in `.env` and read by playbooks via `lookup('env', ...)`
-
 ## Scripts
-- `./ansible_deployment/scripts/cac-apply.sh` — applies all AAP objects
+- `./dependencies/build-images.sh` — builds DE container image
+- `./ansible_deployment/scripts/cac-apply.sh` — applies all AAP/EDA objects
 - `./scripts/test-trigger.sh` — fires a test event to trigger the workflow
 - `./scripts/test-ao-approval-api.py` — debug tool for AO approval API
 
 ## Deployment Order
 1. Fill in `.env` from `.env.example`
-2. `ansible-galaxy collection install -r ansible_deployment/cac/requirements.yml`
-3. `./ansible_deployment/scripts/cac-apply.sh` (creates AAP objects)
-4. Build workflow live on AO canvas (reference: `ao/server-onboarding.json`)
-5. Publish workflow in AO UI
-6. Update `.env` with AO webhook creds, re-run `cac-apply.sh` if needed
-7. `./scripts/test-trigger.sh` (verify the pipeline)
+2. Build DE image (`./dependencies/build-images.sh --push`)
+3. `ansible-galaxy collection install -r ansible_deployment/cac/requirements.yml`
+4. `./ansible_deployment/scripts/cac-apply.sh` (creates AAP + EDA objects)
+5. Import `ao/server-onboarding.json` in AO UI, configure agentic node, publish
+6. Update `.env` with AO webhook creds, re-run `cac-apply.sh`
+7. Create a SNOW incident with "Server Onboarding" in the short description

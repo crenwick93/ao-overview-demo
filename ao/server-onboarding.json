@@ -1,7 +1,7 @@
 {
   "schema_version": "2.0.0",
   "name": "Server Onboarding",
-  "description": "End-to-end server onboarding workflow: AI classification, governance via ServiceNow CR, environment-based routing with approval gates, parallel Day 1 registrations, validation, and Git audit trail.",
+  "description": "End-to-end server onboarding: EDA trigger from ServiceNow, AI classification, governance via CR, environment routing with approval gates, parallel Day 1 registrations, validation, and Git audit trail. Work notes update in ServiceNow at every milestone.",
   "triggers": [
     {
       "id": "trigger_snow_request",
@@ -18,11 +18,19 @@
             "requested_by": {
               "type": "string",
               "description": "Name of the person who submitted the request"
+            },
+            "incident_number": {
+              "type": "string",
+              "description": "ServiceNow incident number (from EDA)"
+            },
+            "incident_sys_id": {
+              "type": "string",
+              "description": "ServiceNow incident sys_id (from EDA)"
             }
           }
         }
       },
-      "position": { "x": 0, "y": 400 }
+      "position": { "x": 400, "y": 0 }
     }
   ],
   "nodes": [
@@ -43,7 +51,7 @@
           }
         }
       },
-      "position": { "x": 400, "y": 400 }
+      "position": { "x": 400, "y": 100 }
     },
     {
       "id": "create_cr",
@@ -55,10 +63,26 @@
         "extra_vars": {
           "action": "create",
           "short_description": "Server Onboarding: ${ai_classify.result.content.server_name}",
-          "justification": "New server request classified by AI. Server: ${ai_classify.result.content.server_name}, OS: ${ai_classify.result.content.os_type}, Env: ${ai_classify.result.content.environment}"
+          "justification": "New server request classified by AI. Server: ${ai_classify.result.content.server_name}, OS: ${ai_classify.result.content.os_type}, Env: ${ai_classify.result.content.environment}",
+          "inc_sys_id": "${trigger_snow_request.incident_sys_id}"
         }
       },
-      "position": { "x": 800, "y": 400 }
+      "position": { "x": 400, "y": 200 }
+    },
+    {
+      "id": "update_cr_classify",
+      "type": "aap_job_template",
+      "name": "CR Note: AI Classification",
+      "parameters": {
+        "job_template_name": "Manage SNOW Change Request",
+        "organization_name": "Default",
+        "extra_vars": {
+          "action": "update",
+          "cr_sys_id": "${create_cr.artifacts.cr_sys_id}",
+          "work_notes": "[code]<h3>AI Classification Complete</h3><p>Server: ${ai_classify.result.content.server_name}<br>OS: ${ai_classify.result.content.os_type}<br>Environment: ${ai_classify.result.content.environment}<br>Services: dns, monitoring, cmdb, backup</p>[/code]"
+        }
+      },
+      "position": { "x": 400, "y": 300 }
     },
     {
       "id": "env_switch",
@@ -83,7 +107,7 @@
           }
         ]
       },
-      "position": { "x": 1200, "y": 400 }
+      "position": { "x": 400, "y": 400 }
     },
     {
       "id": "prod_approval",
@@ -93,7 +117,7 @@
         "description": "Production server onboarding requires CAB approval before provisioning. Approve in AO or bridge from ServiceNow CR.",
         "timeout": 0
       },
-      "position": { "x": 1600, "y": 600 }
+      "position": { "x": 700, "y": 500 }
     },
     {
       "id": "provision",
@@ -108,7 +132,22 @@
           "environment": "${ai_classify.result.content.environment}"
         }
       },
-      "position": { "x": 2000, "y": 400 }
+      "position": { "x": 400, "y": 600 }
+    },
+    {
+      "id": "update_cr_provision",
+      "type": "aap_job_template",
+      "name": "CR Note: Provisioned",
+      "parameters": {
+        "job_template_name": "Manage SNOW Change Request",
+        "organization_name": "Default",
+        "extra_vars": {
+          "action": "update",
+          "cr_sys_id": "${create_cr.artifacts.cr_sys_id}",
+          "work_notes": "[code]<h3>Server Provisioned</h3><p>Server: ${ai_classify.result.content.server_name}<br>IP: ${provision.artifacts.server_ip}<br>FQDN: ${provision.artifacts.server_fqdn}<br>Status: ${provision.artifacts.provision_status}</p>[/code]"
+        }
+      },
+      "position": { "x": 400, "y": 700 }
     },
     {
       "id": "register_dns",
@@ -123,7 +162,7 @@
           "server_ip": "${provision.artifacts.server_ip}"
         }
       },
-      "position": { "x": 2400, "y": 200 }
+      "position": { "x": 100, "y": 800 }
     },
     {
       "id": "register_monitoring",
@@ -138,7 +177,7 @@
           "server_ip": "${provision.artifacts.server_ip}"
         }
       },
-      "position": { "x": 2400, "y": 400 }
+      "position": { "x": 300, "y": 800 }
     },
     {
       "id": "register_cmdb",
@@ -153,7 +192,7 @@
           "server_ip": "${provision.artifacts.server_ip}"
         }
       },
-      "position": { "x": 2400, "y": 600 }
+      "position": { "x": 500, "y": 800 }
     },
     {
       "id": "register_backup",
@@ -168,7 +207,7 @@
           "server_ip": "${provision.artifacts.server_ip}"
         }
       },
-      "position": { "x": 2400, "y": 800 }
+      "position": { "x": 700, "y": 800 }
     },
     {
       "id": "validate",
@@ -182,22 +221,37 @@
           "server_ip": "${provision.artifacts.server_ip}"
         }
       },
-      "position": { "x": 2800, "y": 400 }
+      "position": { "x": 400, "y": 900 }
+    },
+    {
+      "id": "update_cr_validated",
+      "type": "aap_job_template",
+      "name": "CR Note: Validated",
+      "parameters": {
+        "job_template_name": "Manage SNOW Change Request",
+        "organization_name": "Default",
+        "extra_vars": {
+          "action": "update",
+          "cr_sys_id": "${create_cr.artifacts.cr_sys_id}",
+          "work_notes": "[code]<h3>All Validations Passed</h3><p>DNS: ✅ Registered<br>Monitoring: ✅ Registered<br>CMDB: ✅ Registered<br>Backup: ✅ Registered<br><br>Server ${ai_classify.result.content.server_name} is Day 1 ready.</p>[/code]"
+        }
+      },
+      "position": { "x": 400, "y": 1000 }
     },
     {
       "id": "review_cr",
       "type": "aap_job_template",
-      "name": "Update CR (Review)",
+      "name": "Review CR",
       "parameters": {
         "job_template_name": "Manage SNOW Change Request",
         "organization_name": "Default",
         "extra_vars": {
           "action": "review",
           "cr_sys_id": "${create_cr.artifacts.cr_sys_id}",
-          "work_notes": "Server onboarding complete. All validations passed."
+          "work_notes": "[code]<h3>Onboarding Complete</h3><p>All steps completed successfully. Change request ready for review.</p>[/code]"
         }
       },
-      "position": { "x": 3200, "y": 300 }
+      "position": { "x": 250, "y": 1100 }
     },
     {
       "id": "git_commit",
@@ -213,26 +267,29 @@
           "commit_message": "Onboarding report: ${ai_classify.result.content.server_name}"
         }
       },
-      "position": { "x": 3200, "y": 500 }
+      "position": { "x": 550, "y": 1100 }
     }
   ],
   "edges": [
     { "from": "trigger_snow_request", "to": "ai_classify" },
     { "from": "ai_classify", "to": "create_cr" },
-    { "from": "create_cr", "to": "env_switch" },
+    { "from": "create_cr", "to": "update_cr_classify" },
+    { "from": "update_cr_classify", "to": "env_switch" },
     { "from": "env_switch", "to": "provision", "from_port": "case_dev" },
     { "from": "env_switch", "to": "provision", "from_port": "case_staging" },
     { "from": "env_switch", "to": "prod_approval", "from_port": "case_prod" },
     { "from": "prod_approval", "to": "provision", "from_port": "approved" },
-    { "from": "provision", "to": "register_dns" },
-    { "from": "provision", "to": "register_monitoring" },
-    { "from": "provision", "to": "register_cmdb" },
-    { "from": "provision", "to": "register_backup" },
+    { "from": "provision", "to": "update_cr_provision" },
+    { "from": "update_cr_provision", "to": "register_dns" },
+    { "from": "update_cr_provision", "to": "register_monitoring" },
+    { "from": "update_cr_provision", "to": "register_cmdb" },
+    { "from": "update_cr_provision", "to": "register_backup" },
     { "from": "register_dns", "to": "validate" },
     { "from": "register_monitoring", "to": "validate" },
     { "from": "register_cmdb", "to": "validate" },
     { "from": "register_backup", "to": "validate" },
-    { "from": "validate", "to": "review_cr" },
-    { "from": "validate", "to": "git_commit" }
+    { "from": "validate", "to": "update_cr_validated" },
+    { "from": "update_cr_validated", "to": "review_cr" },
+    { "from": "update_cr_validated", "to": "git_commit" }
   ]
 }
