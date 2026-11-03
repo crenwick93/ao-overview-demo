@@ -253,21 +253,21 @@ controller_templates:
     credentials:
       - "ServiceNow ITSM"
 
-  - name: "Open Firewall Rule"
+  - name: "Manage Firewall Rules"
     description: >-
-      Stub: simulates opening a firewall rule between two networks.
-      Survey asks for source/destination CIDR, port, protocol, and
-      the related ServiceNow incident number. Debug output only.
+      Stub: simulates allowing or denying traffic between two networks.
+      Survey asks for source/destination CIDR, port, protocol, action,
+      and the related ServiceNow incident number. Debug output only.
     organization: "Network Engineering"
     job_type: "run"
     project: "Network Change Playbooks"
-    playbook: "playbooks/open_firewall_rule.yml"
+    playbook: "playbooks/manage_firewall_rules.yml"
     inventory: "Network Inventory"
     ask_variables_on_launch: false
     survey_enabled: true
     survey_spec:
-      name: "Firewall Rule Change"
-      description: "Provide the networks, port, and related ServiceNow incident."
+      name: "Manage Firewall Rules"
+      description: "Provide the networks, port, action, and related ServiceNow incident."
       spec:
         - question_name: "Incident number"
           question_description: "Related ServiceNow incident (e.g. INC0010007)"

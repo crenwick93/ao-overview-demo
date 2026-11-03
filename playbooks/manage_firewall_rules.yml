@@ -1,14 +1,12 @@
 ---
-# Stub: simulates opening a firewall rule between two networks.
+# Stub: simulates managing a firewall rule (allow or deny) between networks.
 # Does not touch any firewall or ServiceNow — debug output only.
 #
 # Takes (via survey / extra_vars):
 #   incident_number, source_network, destination_network,
 #   destination_port, protocol, action, direction, justification
-#
-# Publishes: rule_id, firewall_change_status, risk_level
 
-- name: Open Firewall Rule
+- name: Manage Firewall Rules
   hosts: localhost
   connection: local
   gather_facts: false
@@ -42,7 +40,7 @@
       ansible.builtin.debug:
         msg: |
           ══════════════════════════════════════════════════
-           Firewall Rule Change Request (STUB)
+           Manage Firewall Rules (STUB)
           ══════════════════════════════════════════════════
            Incident:      {{ incident_number }}
            Source:        {{ source_network }}
@@ -54,47 +52,21 @@
            Justification: {{ justification }}
           ══════════════════════════════════════════════════
 
-    - name: Assess change risk
-      ansible.builtin.set_fact:
-        _risk_level: >-
-          {{
-            'high' if (destination_port | string) in ['22', '3389', '445', '23']
-            else (
-              'medium' if (source_network.endswith('/8') or destination_network.endswith('/8'))
-              else 'low'
-            )
-          }}
-        _rule_name: "AUTO-{{ incident_number }}-{{ protocol }}-{{ destination_port }}"
-        _rule_id: "FW-{{ 100000 | random(start=900000) }}"
-
-    - name: Record risk assessment
-      ansible.builtin.debug:
-        msg: "Risk assessment → {{ _risk_level | upper }} (proposed rule: {{ _rule_name }})"
-
     - name: Simulate conflict check
       ansible.builtin.debug:
-        msg: "✅ No conflicting allow/deny rule found for this 5-tuple"
+        msg: "✅ No conflicting rule found for this 5-tuple"
 
     - name: Simulate policy push
       ansible.builtin.debug:
         msg: >-
-          Creating {{ action }} rule on device group corp-edge
+          Applying {{ action }} rule on device group corp-edge
           ({{ source_network }} → {{ destination_network }} :{{ destination_port }}/{{ protocol }})...
 
     - name: Simulate policy commit
       ansible.builtin.debug:
         msg: |
-          ✅ Rule committed (stub)
-           Rule ID:   {{ _rule_id }}
-           Rule name: {{ _rule_name }}
-           Hit count: 0 (new)
+          ✅ Rule applied (stub)
+           Rule ID:   FW-900421
+           Rule name: AUTO-{{ incident_number }}-{{ protocol }}-{{ destination_port }}
+           Action:    {{ action | upper }}
            Status:    active
-
-    - name: Publish change artifacts
-      ansible.builtin.set_stats:
-        data:
-          rule_id: "{{ _rule_id }}"
-          rule_name: "{{ _rule_name }}"
-          risk_level: "{{ _risk_level }}"
-          firewall_change_status: "success"
-        aggregate: false
