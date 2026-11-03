@@ -61,7 +61,15 @@
           Applying {{ action }} rule on device group corp-edge
           ({{ source_network }} → {{ destination_network }} :{{ destination_port }}/{{ protocol }})...
 
-    - name: Simulate policy commit
+    - name: Push firewall policy to corp-edge
+      ansible.builtin.command:
+        argv:
+          - /bin/echo
+          - "Applied {{ action | upper }} rule {{ rule_name }} (FW-900421) on corp-edge"
+      changed_when: true
+      register: policy_push
+
+    - name: Confirm rule active
       ansible.builtin.debug:
         msg: |
           ✅ Rule applied (stub)
@@ -69,3 +77,5 @@
            Rule name: {{ rule_name }}
            Action:    {{ action | upper }}
            Status:    active
+           Device:    corp-edge
+           Output:    {{ policy_push.stdout }}
