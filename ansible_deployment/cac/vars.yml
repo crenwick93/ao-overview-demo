@@ -256,8 +256,8 @@ controller_templates:
   - name: "Manage Firewall Rules"
     description: >-
       Stub: simulates allowing or denying traffic between two networks.
-      Survey asks for source/destination CIDR, port, protocol, action,
-      and the related ServiceNow incident number. Debug output only.
+      Survey asks for source/destination CIDR, port, protocol, and action.
+      Debug output only — no ServiceNow integration.
     organization: "Network Engineering"
     job_type: "run"
     project: "Network Change Playbooks"
@@ -267,18 +267,8 @@ controller_templates:
     survey_enabled: true
     survey_spec:
       name: "Manage Firewall Rules"
-      description: "Provide the networks, port, action, and related ServiceNow incident."
+      description: "Provide the networks, port, protocol, and action for the rule change."
       spec:
-        - question_name: "Incident number"
-          question_description: "Related ServiceNow incident (e.g. INC0010007)"
-          required: true
-          type: text
-          variable: incident_number
-          min: 3
-          max: 32
-          default: ""
-          choices: ""
-          new_question: true
         - question_name: "Source network"
           question_description: "Source CIDR (e.g. 10.10.20.0/24)"
           required: true

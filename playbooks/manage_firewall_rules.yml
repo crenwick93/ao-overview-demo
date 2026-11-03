@@ -3,8 +3,8 @@
 # Does not touch any firewall or ServiceNow — debug output only.
 #
 # Takes (via survey / extra_vars):
-#   incident_number, source_network, destination_network,
-#   destination_port, protocol, action, direction, justification
+#   source_network, destination_network, destination_port,
+#   protocol, action, direction, justification
 
 - name: Manage Firewall Rules
   hosts: localhost
@@ -16,13 +16,13 @@
     action: "{{ action | default('allow') }}"
     direction: "{{ direction | default('bidirectional') }}"
     justification: "{{ justification | default('No justification provided') }}"
+    rule_name: >-
+      AUTO-{{ source_network | regex_replace('[^0-9A-Za-z]+', '-') }}-{{ protocol }}-{{ destination_port }}
 
   tasks:
     - name: Validate required parameters
       ansible.builtin.assert:
         that:
-          - incident_number is defined
-          - incident_number | length > 0
           - source_network is defined
           - source_network | length > 0
           - destination_network is defined
@@ -32,8 +32,8 @@
           - action in ['allow', 'deny']
           - direction in ['inbound', 'outbound', 'bidirectional']
         fail_msg: >-
-          Required: incident_number, source_network, destination_network,
-          destination_port, protocol (tcp|udp|icmp), action (allow|deny),
+          Required: source_network, destination_network, destination_port,
+          protocol (tcp|udp|icmp), action (allow|deny),
           direction (inbound|outbound|bidirectional)
 
     - name: Display change request
@@ -42,7 +42,6 @@
           ══════════════════════════════════════════════════
            Manage Firewall Rules (STUB)
           ══════════════════════════════════════════════════
-           Incident:      {{ incident_number }}
            Source:        {{ source_network }}
            Destination:   {{ destination_network }}
            Port:          {{ destination_port }}
@@ -67,6 +66,6 @@
         msg: |
           ✅ Rule applied (stub)
            Rule ID:   FW-900421
-           Rule name: AUTO-{{ incident_number }}-{{ protocol }}-{{ destination_port }}
+           Rule name: {{ rule_name }}
            Action:    {{ action | upper }}
            Status:    active
