@@ -1,0 +1,100 @@
+---
+# Stub: simulates opening a firewall rule between two networks.
+# Does not touch any firewall or ServiceNow — debug output only.
+#
+# Takes (via survey / extra_vars):
+#   incident_number, source_network, destination_network,
+#   destination_port, protocol, action, direction, justification
+#
+# Publishes: rule_id, firewall_change_status, risk_level
+
+- name: Open Firewall Rule
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    protocol: "{{ protocol | default('tcp') }}"
+    action: "{{ action | default('allow') }}"
+    direction: "{{ direction | default('bidirectional') }}"
+    justification: "{{ justification | default('No justification provided') }}"
+
+  tasks:
+    - name: Validate required parameters
+      ansible.builtin.assert:
+        that:
+          - incident_number is defined
+          - incident_number | length > 0
+          - source_network is defined
+          - source_network | length > 0
+          - destination_network is defined
+          - destination_network | length > 0
+          - destination_port is defined
+          - protocol in ['tcp', 'udp', 'icmp']
+          - action in ['allow', 'deny']
+          - direction in ['inbound', 'outbound', 'bidirectional']
+        fail_msg: >-
+          Required: incident_number, source_network, destination_network,
+          destination_port, protocol (tcp|udp|icmp), action (allow|deny),
+          direction (inbound|outbound|bidirectional)
+
+    - name: Display change request
+      ansible.builtin.debug:
+        msg: |
+          ══════════════════════════════════════════════════
+           Firewall Rule Change Request (STUB)
+          ══════════════════════════════════════════════════
+           Incident:      {{ incident_number }}
+           Source:        {{ source_network }}
+           Destination:   {{ destination_network }}
+           Port:          {{ destination_port }}
+           Protocol:      {{ protocol | upper }}
+           Action:        {{ action | upper }}
+           Direction:     {{ direction }}
+           Justification: {{ justification }}
+          ══════════════════════════════════════════════════
+
+    - name: Assess change risk
+      ansible.builtin.set_fact:
+        _risk_level: >-
+          {{
+            'high' if (destination_port | string) in ['22', '3389', '445', '23']
+            else (
+              'medium' if (source_network.endswith('/8') or destination_network.endswith('/8'))
+              else 'low'
+            )
+          }}
+        _rule_name: "AUTO-{{ incident_number }}-{{ protocol }}-{{ destination_port }}"
+        _rule_id: "FW-{{ 100000 | random(start=900000) }}"
+
+    - name: Record risk assessment
+      ansible.builtin.debug:
+        msg: "Risk assessment → {{ _risk_level | upper }} (proposed rule: {{ _rule_name }})"
+
+    - name: Simulate conflict check
+      ansible.builtin.debug:
+        msg: "✅ No conflicting allow/deny rule found for this 5-tuple"
+
+    - name: Simulate policy push
+      ansible.builtin.debug:
+        msg: >-
+          Creating {{ action }} rule on device group corp-edge
+          ({{ source_network }} → {{ destination_network }} :{{ destination_port }}/{{ protocol }})...
+
+    - name: Simulate policy commit
+      ansible.builtin.debug:
+        msg: |
+          ✅ Rule committed (stub)
+           Rule ID:   {{ _rule_id }}
+           Rule name: {{ _rule_name }}
+           Hit count: 0 (new)
+           Status:    active
+
+    - name: Publish change artifacts
+      ansible.builtin.set_stats:
+        data:
+          rule_id: "{{ _rule_id }}"
+          rule_name: "{{ _rule_name }}"
+          risk_level: "{{ _risk_level }}"
+          firewall_change_status: "success"
+        aggregate: false

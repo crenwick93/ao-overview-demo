@@ -4,6 +4,15 @@
 # =============================================================================
 
 # -----------------------------------------------------------------------------
+# Organizations
+# -----------------------------------------------------------------------------
+aap_organizations:
+  - name: "Default"
+    description: "The default organization for Ansible Automation Platform"
+  - name: "Network Engineering"
+    description: "Network change automation — firewall rules, routing, and connectivity"
+
+# -----------------------------------------------------------------------------
 # Custom Credential Types
 # -----------------------------------------------------------------------------
 controller_credential_types:
@@ -104,6 +113,16 @@ controller_inventories:
     description: "Default inventory for AO workflow job templates"
     organization: "Default"
 
+  - name: "Network Inventory"
+    description: "Localhost inventory for network change jobs"
+    organization: "Network Engineering"
+
+controller_hosts:
+  - name: "localhost"
+    inventory: "Network Inventory"
+    variables:
+      ansible_connection: local
+
 # -----------------------------------------------------------------------------
 # Projects
 # -----------------------------------------------------------------------------
@@ -111,6 +130,14 @@ controller_projects:
   - name: "AO Overview Demo"
     description: "Server onboarding playbooks for AO Overview Demo"
     organization: "Default"
+    scm_type: "git"
+    scm_url: "{{ git_repo_url }}"
+    scm_branch: "main"
+    scm_update_on_launch: true
+
+  - name: "Network Change Playbooks"
+    description: "Firewall and network change playbooks"
+    organization: "Network Engineering"
     scm_type: "git"
     scm_url: "{{ git_repo_url }}"
     scm_branch: "main"
@@ -130,6 +157,9 @@ controller_templates:
     playbook: "playbooks/trigger_ao_workflow.yml"
     inventory: "Demo Inventory"
     ask_variables_on_launch: true
+    extra_vars:
+      webhook_path: null
+      event_payload: null
     credentials:
       - "AO Webhook"
 
@@ -143,6 +173,10 @@ controller_templates:
     playbook: "playbooks/manage_snow_request.yml"
     inventory: "Demo Inventory"
     ask_variables_on_launch: true
+    extra_vars:
+      action: null
+      ritm_sys_id: null
+      work_notes: null
     credentials:
       - "ServiceNow ITSM"
 
@@ -157,6 +191,11 @@ controller_templates:
     playbook: "playbooks/provision_server.yml"
     inventory: "Demo Inventory"
     ask_variables_on_launch: true
+    extra_vars:
+      server_name: null
+      os_type: null
+      environment: null
+      ritm_sys_id: null
     credentials:
       - "ServiceNow ITSM"
       - "AWS"
@@ -171,6 +210,9 @@ controller_templates:
     playbook: "playbooks/check_server_ready.yml"
     inventory: "Demo Inventory"
     ask_variables_on_launch: true
+    extra_vars:
+      server_name: null
+      server_ip: null
     credentials:
       - "Demo SSH Key"
 
@@ -185,6 +227,11 @@ controller_templates:
     playbook: "playbooks/register_service.yml"
     inventory: "Demo Inventory"
     ask_variables_on_launch: true
+    extra_vars:
+      service_name: null
+      server_name: null
+      server_ip: null
+      ritm_sys_id: null
     credentials:
       - "ServiceNow ITSM"
 
@@ -199,8 +246,117 @@ controller_templates:
     playbook: "playbooks/validate_server.yml"
     inventory: "Demo Inventory"
     ask_variables_on_launch: true
+    extra_vars:
+      server_name: null
+      server_ip: null
+      ritm_sys_id: null
     credentials:
       - "ServiceNow ITSM"
+
+  - name: "Open Firewall Rule"
+    description: >-
+      Stub: simulates opening a firewall rule between two networks.
+      Survey asks for source/destination CIDR, port, protocol, and
+      the related ServiceNow incident number. Debug output only.
+    organization: "Network Engineering"
+    job_type: "run"
+    project: "Network Change Playbooks"
+    playbook: "playbooks/open_firewall_rule.yml"
+    inventory: "Network Inventory"
+    ask_variables_on_launch: false
+    survey_enabled: true
+    survey_spec:
+      name: "Firewall Rule Change"
+      description: "Provide the networks, port, and related ServiceNow incident."
+      spec:
+        - question_name: "Incident number"
+          question_description: "Related ServiceNow incident (e.g. INC0010007)"
+          required: true
+          type: text
+          variable: incident_number
+          min: 3
+          max: 32
+          default: ""
+          choices: ""
+          new_question: true
+        - question_name: "Source network"
+          question_description: "Source CIDR (e.g. 10.10.20.0/24)"
+          required: true
+          type: text
+          variable: source_network
+          min: 7
+          max: 64
+          default: ""
+          choices: ""
+          new_question: true
+        - question_name: "Destination network"
+          question_description: "Destination CIDR (e.g. 10.50.1.0/24)"
+          required: true
+          type: text
+          variable: destination_network
+          min: 7
+          max: 64
+          default: ""
+          choices: ""
+          new_question: true
+        - question_name: "Destination port"
+          question_description: "Port to open (1-65535). Use 0 for ICMP."
+          required: true
+          type: integer
+          variable: destination_port
+          min: 0
+          max: 65535
+          default: 443
+          choices: ""
+          new_question: true
+        - question_name: "Protocol"
+          question_description: "IP protocol for the rule"
+          required: true
+          type: multiplechoice
+          variable: protocol
+          min: null
+          max: null
+          default: tcp
+          choices: |-
+            tcp
+            udp
+            icmp
+          new_question: true
+        - question_name: "Action"
+          question_description: "Allow or deny the traffic"
+          required: true
+          type: multiplechoice
+          variable: action
+          min: null
+          max: null
+          default: allow
+          choices: |-
+            allow
+            deny
+          new_question: true
+        - question_name: "Direction"
+          question_description: "Traffic direction relative to the destination network"
+          required: true
+          type: multiplechoice
+          variable: direction
+          min: null
+          max: null
+          default: bidirectional
+          choices: |-
+            inbound
+            outbound
+            bidirectional
+          new_question: true
+        - question_name: "Business justification"
+          question_description: "Why this rule is required"
+          required: true
+          type: textarea
+          variable: justification
+          min: 5
+          max: 1024
+          default: ""
+          choices: ""
+          new_question: true
 
 
 # =============================================================================
